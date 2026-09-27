@@ -26,9 +26,10 @@ Pick any items you care about — flasks, enchanting mats, quest tokens, whateve
 
 ## Installation
 
-1. Copy (or symlink) the `ItemTracker/` folder into your WoW `Interface/AddOns/` directory, so you end up with `Interface/AddOns/ItemTracker/ItemTracker.toc`.
-2. Make sure it's enabled at the character-select AddOns list.
-3. Log in — that's it, no configuration required to get started.
+1. Grab the latest zip from the [Releases page](../../releases), or copy/symlink the `ItemTracker/` folder from this repo directly.
+2. Extract (or place) it into your WoW `Interface/AddOns/` directory, so you end up with `Interface/AddOns/ItemTracker/ItemTracker.toc`.
+3. Make sure it's enabled at the character-select AddOns list.
+4. Log in — that's it, no configuration required to get started.
 
 ## Usage
 
