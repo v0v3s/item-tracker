@@ -4,6 +4,21 @@ ItemTracker.Bar = ItemTracker.Bar or {}
 local frame
 local buttons = {}
 
+local function StartBarDrag()
+  if not ItemTrackerDB.bar.locked then
+    frame:StartMoving()
+  end
+end
+
+local function StopBarDrag()
+  frame:StopMovingOrSizing()
+  local point, _, relPoint, x, y = frame:GetPoint()
+  ItemTrackerDB.bar.point = point
+  ItemTrackerDB.bar.relPoint = relPoint
+  ItemTrackerDB.bar.x = x
+  ItemTrackerDB.bar.y = y
+end
+
 local function ApplyButtonAppearance(button, itemID, count, threshold)
   button.itemID = itemID
   button.icon:SetTexture(ItemTracker.ItemData.GetItemIcon(itemID))
@@ -28,6 +43,7 @@ local function CreateButton(index)
 
   button.icon = button:CreateTexture(nil, "ARTWORK")
   button.icon:SetAllPoints(button)
+  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
   button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
   button.count:SetPoint("BOTTOMRIGHT", -2, 2)
@@ -43,6 +59,10 @@ local function CreateButton(index)
   button:SetScript("OnLeave", function()
     GameTooltip:Hide()
   end)
+
+  button:RegisterForDrag("LeftButton")
+  button:SetScript("OnDragStart", StartBarDrag)
+  button:SetScript("OnDragStop", StopBarDrag)
 
   return button
 end
@@ -101,19 +121,8 @@ function ItemTracker.Bar.Create()
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
-  frame:SetScript("OnDragStart", function(self)
-    if not ItemTrackerDB.bar.locked then
-      self:StartMoving()
-    end
-  end)
-  frame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    local point, _, relPoint, x, y = self:GetPoint()
-    ItemTrackerDB.bar.point = point
-    ItemTrackerDB.bar.relPoint = relPoint
-    ItemTrackerDB.bar.x = x
-    ItemTrackerDB.bar.y = y
-  end)
+  frame:SetScript("OnDragStart", StartBarDrag)
+  frame:SetScript("OnDragStop", StopBarDrag)
 
   ItemTracker.Skins.ApplyElvUIToBar(frame)
 end

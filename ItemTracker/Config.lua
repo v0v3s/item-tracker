@@ -180,7 +180,7 @@ function ItemTracker.Config.Create()
     return
   end
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(300, 460)
+  frame:SetSize(300, 600)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
