@@ -1,0 +1,5 @@
+## Interface: 30300
+## Title: ItemTracker
+## Notes: Configurable action-bar-style tracker for bag+bank item counts.
+## Author: Vojtech Vesely
+## SavedVariablesPerCharacter: ItemTrackerDB
