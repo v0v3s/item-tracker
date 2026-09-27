@@ -3,6 +3,7 @@
 ## Notes: Configurable action-bar-style tracker for bag+bank item counts.
 ## Author: Vojtech Vesely
 ## SavedVariablesPerCharacter: ItemTrackerDB
+## OptionalDeps: ElvUI
 
 Logic/Defaults.lua
 Logic/Threshold.lua
@@ -10,3 +11,4 @@ Logic/ItemInput.lua
 Logic/ItemList.lua
 Logic/BarLayout.lua
 ItemData.lua
+Skins/ElvUI.lua
