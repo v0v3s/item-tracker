@@ -12,3 +12,4 @@ Logic/ItemList.lua
 Logic/BarLayout.lua
 ItemData.lua
 Skins/ElvUI.lua
+Bar.lua
