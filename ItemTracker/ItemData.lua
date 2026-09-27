@@ -28,8 +28,10 @@ function ItemTracker.ItemData.ResolveItemName(itemID, callback)
   end
   local ticker = CreateFrame("Frame")
   local elapsed = 0
+  local totalElapsed = 0
   ticker:SetScript("OnUpdate", function(self, delta)
     elapsed = elapsed + delta
+    totalElapsed = totalElapsed + delta
     if elapsed < 0.2 then
       return
     end
@@ -38,6 +40,8 @@ function ItemTracker.ItemData.ResolveItemName(itemID, callback)
     if resolvedName then
       self:SetScript("OnUpdate", nil)
       callback(resolvedName)
+    elseif totalElapsed > 5 then
+      self:SetScript("OnUpdate", nil)
     end
   end)
 end

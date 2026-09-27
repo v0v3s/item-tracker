@@ -2,6 +2,7 @@
 ## Title: ItemTracker
 ## Notes: Configurable action-bar-style tracker for bag+bank item counts.
 ## Author: Vojtech Vesely
+## Version: 1.0
 ## SavedVariablesPerCharacter: ItemTrackerDB
 ## OptionalDeps: ElvUI
 Defaults.lua

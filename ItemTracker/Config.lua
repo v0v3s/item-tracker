@@ -43,6 +43,7 @@ local function CreateRow(index)
   row.icon = row:CreateTexture(nil, "ARTWORK")
   row.icon:SetSize(28, 28)
   row.icon:SetPoint("LEFT", 4, 0)
+  row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
   row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.nameText:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
@@ -59,6 +60,15 @@ local function CreateRow(index)
     ItemTracker.Logic.SetThreshold(ItemTrackerDB.items, row.itemID, threshold)
     self:ClearFocus()
     ItemTracker.Bar.Refresh()
+  end)
+  row.thresholdBox:SetScript("OnEditFocusLost", function(self)
+    local threshold = tonumber(self:GetText()) or 1
+    ItemTracker.Logic.SetThreshold(ItemTrackerDB.items, row.itemID, threshold)
+    ItemTracker.Bar.Refresh()
+  end)
+  row.thresholdBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+    RefreshList()
   end)
 
   row.removeButton = CreateFrame("Button", "ItemTrackerConfigRowRemove" .. index, row, "UIPanelCloseButton")
@@ -78,7 +88,7 @@ local function ShowAddError(message)
 end
 
 local function TryAddItemID(itemID)
-  if not itemID then
+  if not itemID or not ItemTracker.ItemData.GetItemIcon(itemID) then
     ShowAddError("item not found")
     return
   end
@@ -165,12 +175,14 @@ local function CreateBarOptions(parent, anchorTo)
       option.func = function(self)
         ItemTrackerDB.bar.growth = self.value
         UIDropDownMenu_SetSelectedValue(growthDropdown, self.value)
+        UIDropDownMenu_SetText(growthDropdown, self.value)
         ItemTracker.Bar.Refresh()
       end
       UIDropDownMenu_AddButton(option, level)
     end
   end)
   UIDropDownMenu_SetSelectedValue(growthDropdown, ItemTrackerDB.bar.growth)
+  UIDropDownMenu_SetText(growthDropdown, ItemTrackerDB.bar.growth)
 
   return {
     lockCheck = lockCheck,
@@ -194,6 +206,7 @@ function ItemTracker.Config.Create()
   })
   frame:SetMovable(true)
   frame:EnableMouse(true)
+  frame:SetClampedToScreen(true)
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", frame.StartMoving)
   frame:SetScript("OnDragStop", function(self)
@@ -232,15 +245,16 @@ function ItemTracker.Config.Create()
   local addHint = addEditBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   addHint:SetPoint("LEFT", addEditBox, "LEFT", 6, 0)
   addHint:SetText("Item ID")
-  addEditBox:SetScript("OnTextChanged", function(self)
-    addHint:SetShown(self:GetText() == "")
-  end)
-  addEditBox:SetScript("OnEditFocusGained", function(self)
-    addHint:Hide()
-  end)
-  addEditBox:SetScript("OnEditFocusLost", function(self)
-    addHint:SetShown(self:GetText() == "")
-  end)
+  local function UpdateAddHint()
+    if addEditBox:GetText() == "" then
+      addHint:Show()
+    else
+      addHint:Hide()
+    end
+  end
+  addEditBox:SetScript("OnTextChanged", UpdateAddHint)
+  addEditBox:SetScript("OnEditFocusGained", function() addHint:Hide() end)
+  addEditBox:SetScript("OnEditFocusLost", UpdateAddHint)
 
   local dragSlot = CreateFrame("Button", "ItemTrackerConfigDragSlot", frame)
   dragSlot:SetSize(28, 28)
@@ -281,6 +295,7 @@ function ItemTracker.Config.Create()
   local barOptions = CreateBarOptions(frame, scrollFrame)
 
   frame:Hide()
+  table.insert(UISpecialFrames, "ItemTrackerConfig")
 
   local removeButtons = {}
   local thresholdBoxes = {}

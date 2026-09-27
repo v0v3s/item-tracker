@@ -77,30 +77,15 @@ local function GetButton(index)
   return button
 end
 
--- Computes the outer frame's width/height (pixels) so its drag hit-region
--- covers the whole icon grid, using the same step/columns/growth math as
--- ItemTracker.Logic.ComputeSlotPosition. Never collapses below a single
--- icon's footprint, so the bar stays draggable even with zero items.
-local function ComputeFrameSize(itemCount, barOpts)
-  local columns = math.max(barOpts.columns or 1, 1)
-  local step = barOpts.iconSize + barOpts.spacing
-  local count = math.max(itemCount, 1)
-  local perLine = math.min(count, columns)
-  local numLines = math.ceil(count / columns)
-  if barOpts.growth == "DOWN" or barOpts.growth == "UP" then
-    return numLines * step, perLine * step
-  end
-  return perLine * step, numLines * step
-end
-
 local function LayoutButtons()
   local barOpts = ItemTrackerDB.bar
   local items = ItemTrackerDB.items
+  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#items, barOpts.columns, barOpts.iconSize, barOpts.spacing, barOpts.growth)
   for index, entry in ipairs(items) do
     local button = GetButton(index)
     local x, y = ItemTracker.Logic.ComputeSlotPosition(index, barOpts.columns, barOpts.iconSize, barOpts.spacing, barOpts.growth)
     button:ClearAllPoints()
-    button:SetPoint("TOPLEFT", frame, "TOPLEFT", x, y)
+    button:SetPoint("TOPLEFT", frame, "TOPLEFT", x + originX, y + originY)
     button:SetSize(barOpts.iconSize, barOpts.iconSize)
     ApplyButtonAppearance(button, entry.itemID, ItemTracker.ItemData.GetTrackedCount(entry.itemID), entry.threshold)
     button:Show()
@@ -108,7 +93,7 @@ local function LayoutButtons()
   for index = #items + 1, #buttons do
     buttons[index]:Hide()
   end
-  frame:SetSize(ComputeFrameSize(#items, barOpts))
+  frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#items, barOpts))
 end
 
 function ItemTracker.Bar.Create()
@@ -116,11 +101,12 @@ function ItemTracker.Bar.Create()
     return
   end
   frame = CreateFrame("Frame", "ItemTrackerBar", UIParent)
-  frame:SetSize(ComputeFrameSize(#ItemTrackerDB.items, ItemTrackerDB.bar))
+  frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#ItemTrackerDB.items, ItemTrackerDB.bar))
   frame:SetPoint(ItemTrackerDB.bar.point, UIParent, ItemTrackerDB.bar.relPoint, ItemTrackerDB.bar.x, ItemTrackerDB.bar.y)
   frame:SetScale(ItemTrackerDB.bar.scale)
   frame:SetMovable(true)
   frame:EnableMouse(true)
+  frame:SetClampedToScreen(true)
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", StartBarDrag)
   frame:SetScript("OnDragStop", StopBarDrag)

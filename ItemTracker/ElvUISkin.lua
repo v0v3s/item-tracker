@@ -32,28 +32,29 @@ function ItemTracker.Skins.ApplyElvUIToConfig(frame, controls)
     return
   end
   controls = controls or {}
-  pcall(function()
-    frame:SetTemplate("Default")
-    for _, button in ipairs(controls.buttons or {}) do
-      S:HandleButton(button)
-    end
-    for _, button in ipairs(controls.closeButtons or {}) do
-      S:HandleCloseButton(button)
-    end
-    for _, checkbox in ipairs(controls.checkboxes or {}) do
-      S:HandleCheckBox(checkbox)
-    end
-    for _, editbox in ipairs(controls.editboxes or {}) do
-      S:HandleEditBox(editbox)
-    end
-    for _, slider in ipairs(controls.sliders or {}) do
-      S:HandleSliderFrame(slider)
-    end
-    for _, dropdown in ipairs(controls.dropdowns or {}) do
-      S:HandleDropDownBox(dropdown.frame, dropdown.width)
-    end
-    for _, plainFrame in ipairs(controls.plainFrames or {}) do
-      plainFrame:SetTemplate("Default")
-    end
-  end)
+  local function try(fn)
+    pcall(fn)
+  end
+  try(function() frame:SetTemplate("Default") end)
+  for _, button in ipairs(controls.buttons or {}) do
+    try(function() S:HandleButton(button) end)
+  end
+  for _, button in ipairs(controls.closeButtons or {}) do
+    try(function() S:HandleCloseButton(button) end)
+  end
+  for _, checkbox in ipairs(controls.checkboxes or {}) do
+    try(function() S:HandleCheckBox(checkbox) end)
+  end
+  for _, editbox in ipairs(controls.editboxes or {}) do
+    try(function() S:HandleEditBox(editbox) end)
+  end
+  for _, slider in ipairs(controls.sliders or {}) do
+    try(function() S:HandleSliderFrame(slider) end)
+  end
+  for _, dropdown in ipairs(controls.dropdowns or {}) do
+    try(function() S:HandleDropDownBox(dropdown.frame, dropdown.width) end)
+  end
+  for _, plainFrame in ipairs(controls.plainFrames or {}) do
+    try(function() plainFrame:SetTemplate("Default") end)
+  end
 end

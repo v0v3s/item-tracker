@@ -13,6 +13,7 @@ eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
   if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
     ItemTrackerDB = ItemTracker.Logic.MergeDefaults(ItemTrackerDB or {}, ItemTracker.Logic.DEFAULT_DB)
+    self:UnregisterEvent("ADDON_LOADED")
   elseif event == "PLAYER_ENTERING_WORLD" then
     ItemTracker.Bar.Create()
     ItemTracker.Bar.Refresh()
