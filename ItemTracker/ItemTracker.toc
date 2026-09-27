@@ -4,13 +4,13 @@
 ## Author: Vojtech Vesely
 ## SavedVariablesPerCharacter: ItemTrackerDB
 ## OptionalDeps: ElvUI
-Logic/Defaults.lua
-Logic/Threshold.lua
-Logic/ItemInput.lua
-Logic/ItemList.lua
-Logic/BarLayout.lua
+Defaults.lua
+Threshold.lua
+ItemInput.lua
+ItemList.lua
+BarLayout.lua
 ItemData.lua
-Skins/ElvUI.lua
+ElvUISkin.lua
 Bar.lua
 Config.lua
 Core.lua

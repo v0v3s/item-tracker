@@ -1,4 +1,4 @@
-dofile("ItemTracker/Logic/ItemList.lua")
+dofile("ItemTracker/ItemList.lua")
 
 local items = {}
 

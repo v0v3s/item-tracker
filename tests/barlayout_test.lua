@@ -1,4 +1,4 @@
-dofile("ItemTracker/Logic/BarLayout.lua")
+dofile("ItemTracker/BarLayout.lua")
 
 local x, y = ItemTracker.Logic.ComputeSlotPosition(1, 4, 36, 4, "RIGHT")
 assert(x == 0 and y == 0, "first slot should be at origin")

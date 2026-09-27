@@ -1,4 +1,4 @@
-dofile("ItemTracker/Logic/Threshold.lua")
+dofile("ItemTracker/Threshold.lua")
 
 assert(ItemTracker.Logic.IsLowStock(0, 1) == true, "0 below threshold 1 should warn")
 assert(ItemTracker.Logic.IsLowStock(5, 1) == false, "5 above threshold 1 should not warn")

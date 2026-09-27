@@ -1,4 +1,4 @@
-dofile("ItemTracker/Logic/ItemInput.lua")
+dofile("ItemTracker/ItemInput.lua")
 
 local id, err = ItemTracker.Logic.ParseItemInput("6948")
 assert(id == 6948 and err == nil, "plain numeric ID should parse")

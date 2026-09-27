@@ -1,4 +1,4 @@
-dofile("ItemTracker/Logic/Defaults.lua")
+dofile("ItemTracker/Defaults.lua")
 
 local result = ItemTracker.Logic.MergeDefaults({}, ItemTracker.Logic.DEFAULT_DB)
 assert(result.bar.iconSize == 36, "expected default iconSize 36, got " .. tostring(result.bar.iconSize))
