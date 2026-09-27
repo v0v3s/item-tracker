@@ -56,6 +56,22 @@ local function GetButton(index)
   return button
 end
 
+-- Computes the outer frame's width/height (pixels) so its drag hit-region
+-- covers the whole icon grid, using the same step/columns/growth math as
+-- ItemTracker.Logic.ComputeSlotPosition. Never collapses below a single
+-- icon's footprint, so the bar stays draggable even with zero items.
+local function ComputeFrameSize(itemCount, barOpts)
+  local columns = math.max(barOpts.columns or 1, 1)
+  local step = barOpts.iconSize + barOpts.spacing
+  local count = math.max(itemCount, 1)
+  local perLine = math.min(count, columns)
+  local numLines = math.ceil(count / columns)
+  if barOpts.growth == "DOWN" or barOpts.growth == "UP" then
+    return numLines * step, perLine * step
+  end
+  return perLine * step, numLines * step
+end
+
 local function LayoutButtons()
   local barOpts = ItemTrackerDB.bar
   local items = ItemTrackerDB.items
@@ -71,6 +87,7 @@ local function LayoutButtons()
   for index = #items + 1, #buttons do
     buttons[index]:Hide()
   end
+  frame:SetSize(ComputeFrameSize(#items, barOpts))
 end
 
 function ItemTracker.Bar.Create()
@@ -78,7 +95,7 @@ function ItemTracker.Bar.Create()
     return
   end
   frame = CreateFrame("Frame", "ItemTrackerBar", UIParent)
-  frame:SetSize(200, 40)
+  frame:SetSize(ComputeFrameSize(#ItemTrackerDB.items, ItemTrackerDB.bar))
   frame:SetPoint(ItemTrackerDB.bar.point, UIParent, ItemTrackerDB.bar.relPoint, ItemTrackerDB.bar.x, ItemTrackerDB.bar.y)
   frame:SetScale(ItemTrackerDB.bar.scale)
   frame:SetMovable(true)
