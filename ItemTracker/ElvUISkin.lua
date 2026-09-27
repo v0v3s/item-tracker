@@ -28,8 +28,16 @@ function ItemTracker.Skins.ApplyElvUIToBar(frame)
   end)
 end
 
--- Reskins the config window's frame + the widgets listed in `controls`
--- ({ buttons = {...}, checkboxes = {...}, editboxes = {...} }, all optional).
+-- Reskins the config window's frame + the widgets listed in `controls`.
+-- All fields optional:
+--   buttons      - plain text/label buttons (S:HandleButton)
+--   closeButtons - icon-only close-style buttons, e.g. UIPanelCloseButton (S:HandleCloseButton)
+--   checkboxes   - CheckButton widgets (S:HandleCheckBox)
+--   editboxes    - EditBox widgets (S:HandleEditBox)
+--   sliders      - OptionsSliderTemplate-based Slider widgets (S:HandleSliderFrame)
+--   dropdowns    - array of { frame = dropdownFrame, width = number } (S:HandleDropDownBox)
+--   plainFrames  - custom-textured frames that should just get a flat backdrop,
+--                  without touching their own textures (frame:SetTemplate("Default"))
 function ItemTracker.Skins.ApplyElvUIToConfig(frame, controls)
   local S = GetElvUISkinsModule()
   if not S then
@@ -41,11 +49,23 @@ function ItemTracker.Skins.ApplyElvUIToConfig(frame, controls)
     for _, button in ipairs(controls.buttons or {}) do
       S:HandleButton(button)
     end
+    for _, button in ipairs(controls.closeButtons or {}) do
+      S:HandleCloseButton(button)
+    end
     for _, checkbox in ipairs(controls.checkboxes or {}) do
       S:HandleCheckBox(checkbox)
     end
     for _, editbox in ipairs(controls.editboxes or {}) do
       S:HandleEditBox(editbox)
+    end
+    for _, slider in ipairs(controls.sliders or {}) do
+      S:HandleSliderFrame(slider)
+    end
+    for _, dropdown in ipairs(controls.dropdowns or {}) do
+      S:HandleDropDownBox(dropdown.frame, dropdown.width)
+    end
+    for _, plainFrame in ipairs(controls.plainFrames or {}) do
+      plainFrame:SetTemplate("Default")
     end
   end)
 end

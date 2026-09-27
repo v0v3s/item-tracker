@@ -38,7 +38,7 @@ end
 
 local function CreateRow(index)
   local row = CreateFrame("Frame", "ItemTrackerConfigRow" .. index, frame)
-  row:SetSize(260, ROW_HEIGHT)
+  row:SetSize(236, ROW_HEIGHT)
 
   row.icon = row:CreateTexture(nil, "ARTWORK")
   row.icon:SetSize(28, 28)
@@ -172,7 +172,11 @@ local function CreateBarOptions(parent, anchorTo)
   end)
   UIDropDownMenu_SetSelectedValue(growthDropdown, ItemTrackerDB.bar.growth)
 
-  return lockCheck, growthDropdown
+  return {
+    lockCheck = lockCheck,
+    sliders = { iconSizeSlider, columnsSlider, scaleSlider },
+    growthDropdown = growthDropdown,
+  }
 end
 
 function ItemTracker.Config.Create()
@@ -205,18 +209,37 @@ function ItemTracker.Config.Create()
   title:SetPoint("TOP", 0, -16)
   title:SetText("Item Tracker")
 
+  local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  instructions:SetPoint("TOP", title, "BOTTOM", 0, -8)
+  instructions:SetWidth(260)
+  instructions:SetJustifyH("CENTER")
+  instructions:SetText("Type an item name, link, or ID and press Enter, or drag an item onto the slot below.")
+
   local closeButton = CreateFrame("Button", "ItemTrackerConfigCloseButton", frame, "UIPanelCloseButton")
   closeButton:SetPoint("TOPRIGHT", -4, -4)
   closeButton:SetScript("OnClick", function() frame:Hide() end)
 
   addEditBox = CreateFrame("EditBox", "ItemTrackerConfigAddBox", frame, "InputBoxTemplate")
   addEditBox:SetSize(180, 24)
-  addEditBox:SetPoint("TOPLEFT", 40, -50)
+  addEditBox:SetPoint("TOPLEFT", 40, -70)
   addEditBox:SetAutoFocus(false)
   addEditBox:SetScript("OnEnterPressed", function(self)
     HandleAddInput(self:GetText())
     self:SetText("")
     self:ClearFocus()
+  end)
+
+  local addHint = addEditBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  addHint:SetPoint("LEFT", addEditBox, "LEFT", 6, 0)
+  addHint:SetText("Item ID")
+  addEditBox:SetScript("OnTextChanged", function(self)
+    addHint:SetShown(self:GetText() == "")
+  end)
+  addEditBox:SetScript("OnEditFocusGained", function(self)
+    addHint:Hide()
+  end)
+  addEditBox:SetScript("OnEditFocusLost", function(self)
+    addHint:SetShown(self:GetText() == "")
   end)
 
   local dragSlot = CreateFrame("Button", "ItemTrackerConfigDragSlot", frame)
@@ -230,13 +253,21 @@ function ItemTracker.Config.Create()
       HandleCursorDrop()
     end
   end)
+  dragSlot:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Drag an item here to track it")
+    GameTooltip:Show()
+  end)
+  dragSlot:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
 
   addError = frame:CreateFontString(nil, "OVERLAY", "GameFontRed")
   addError:SetPoint("TOPLEFT", addEditBox, "BOTTOMLEFT", 0, -4)
 
   scrollFrame = CreateFrame("ScrollFrame", "ItemTrackerConfigScrollFrame", frame, "FauxScrollFrameTemplate")
   scrollFrame:SetPoint("TOPLEFT", addEditBox, "BOTTOMLEFT", 0, -24)
-  scrollFrame:SetSize(260, ROW_HEIGHT * NUM_VISIBLE_ROWS)
+  scrollFrame:SetSize(236, ROW_HEIGHT * NUM_VISIBLE_ROWS)
   scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
     FauxScrollFrame_OnVerticalScroll(self, offset, ROW_HEIGHT, RefreshList)
   end)
@@ -247,18 +278,24 @@ function ItemTracker.Config.Create()
     rows[index] = row
   end
 
-  local lockCheck, growthDropdown = CreateBarOptions(frame, scrollFrame)
+  local barOptions = CreateBarOptions(frame, scrollFrame)
 
   frame:Hide()
 
   local removeButtons = {}
+  local thresholdBoxes = {}
   for _, row in ipairs(rows) do
     table.insert(removeButtons, row.removeButton)
+    table.insert(thresholdBoxes, row.thresholdBox)
   end
+
   ItemTracker.Skins.ApplyElvUIToConfig(frame, {
-    buttons = removeButtons,
-    checkboxes = { lockCheck },
-    editboxes = { addEditBox },
+    closeButtons = { closeButton, unpack(removeButtons) },
+    checkboxes = { barOptions.lockCheck },
+    editboxes = { addEditBox, unpack(thresholdBoxes) },
+    sliders = barOptions.sliders,
+    dropdowns = { { frame = barOptions.growthDropdown, width = 100 } },
+    plainFrames = { dragSlot },
   })
 end
 
