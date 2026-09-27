@@ -184,7 +184,7 @@ function ItemTracker.Config.Create()
     return
   end
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(300, 600)
+  frame:SetSize(300, 650)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -210,9 +210,9 @@ function ItemTracker.Config.Create()
   title:SetText("Item Tracker")
 
   local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  instructions:SetPoint("TOP", title, "BOTTOM", 0, -8)
+  instructions:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
   instructions:SetWidth(260)
-  instructions:SetJustifyH("CENTER")
+  instructions:SetJustifyH("LEFT")
   instructions:SetText("Type an item name, link, or ID and press Enter, or drag an item onto the slot below.")
 
   local closeButton = CreateFrame("Button", "ItemTrackerConfigCloseButton", frame, "UIPanelCloseButton")
@@ -221,7 +221,7 @@ function ItemTracker.Config.Create()
 
   addEditBox = CreateFrame("EditBox", "ItemTrackerConfigAddBox", frame, "InputBoxTemplate")
   addEditBox:SetSize(180, 24)
-  addEditBox:SetPoint("TOPLEFT", 40, -70)
+  addEditBox:SetPoint("TOPLEFT", instructions, "BOTTOMLEFT", 20, -10)
   addEditBox:SetAutoFocus(false)
   addEditBox:SetScript("OnEnterPressed", function(self)
     HandleAddInput(self:GetText())

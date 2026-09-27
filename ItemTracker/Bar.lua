@@ -25,24 +25,25 @@ local function ApplyButtonAppearance(button, itemID, count, threshold)
   button.count:SetText(count)
   if ItemTracker.Logic.IsLowStock(count, threshold) then
     button.count:SetTextColor(1, 0.15, 0.15)
-    button:SetBackdropBorderColor(1, 0, 0)
+    button.border:SetVertexColor(1, 0, 0)
   else
     button.count:SetTextColor(1, 1, 1)
-    button:SetBackdropBorderColor(0, 0, 0)
+    button.border:SetVertexColor(0, 0, 0)
   end
 end
 
 local function CreateButton(index)
   local button = CreateFrame("Button", "ItemTrackerBarButton" .. index, frame)
   button:SetSize(36, 36)
-  button:SetBackdrop({
-    edgeFile = "Interface\\Buttons\\WHITE8X8",
-    edgeSize = 1,
-  })
-  button:SetBackdropBorderColor(0, 0, 0)
+
+  button.border = button:CreateTexture(nil, "BACKGROUND")
+  button.border:SetAllPoints(button)
+  button.border:SetTexture(1, 1, 1)
+  button.border:SetVertexColor(0, 0, 0)
 
   button.icon = button:CreateTexture(nil, "ARTWORK")
-  button.icon:SetAllPoints(button)
+  button.icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+  button.icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
   button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
@@ -123,8 +124,6 @@ function ItemTracker.Bar.Create()
   frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", StartBarDrag)
   frame:SetScript("OnDragStop", StopBarDrag)
-
-  ItemTracker.Skins.ApplyElvUIToBar(frame)
 end
 
 function ItemTracker.Bar.Refresh()

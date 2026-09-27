@@ -16,18 +16,6 @@ local function GetElvUISkinsModule()
   return S
 end
 
--- Reskins the tracker bar's outer frame to match ElvUI's flat style.
--- No-op if ElvUI isn't loaded, or if ElvUI's skinning API errors --
--- degrades safely to the addon's own default look either way.
-function ItemTracker.Skins.ApplyElvUIToBar(frame)
-  if not GetElvUISkinsModule() then
-    return
-  end
-  pcall(function()
-    frame:SetTemplate("Transparent")
-  end)
-end
-
 -- Reskins the config window's frame + the widgets listed in `controls`.
 -- All fields optional:
 --   buttons      - plain text/label buttons (S:HandleButton)
