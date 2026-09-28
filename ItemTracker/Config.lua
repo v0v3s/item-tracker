@@ -9,9 +9,19 @@ local addEditBox
 local addError
 local rows = {}
 local scrollFrame
+local selectedBar = 1
+local barDropdown
+local barNameBox
+local newBarButton
+local deleteBarButton
+local lockCheck
+local iconSizeSlider
+local columnsSlider
+local scaleSlider
+local growthDropdown
 
 local function RefreshList()
-  local items = ItemTrackerDB.items
+  local items = ItemTrackerDB.bars[selectedBar].items
   FauxScrollFrame_Update(scrollFrame, #items, NUM_VISIBLE_ROWS, ROW_HEIGHT)
   local offset = FauxScrollFrame_GetOffset(scrollFrame)
   for rowIndex = 1, NUM_VISIBLE_ROWS do
@@ -36,6 +46,30 @@ local function RefreshList()
   end
 end
 
+local function RefreshBarOptions()
+  local bar = ItemTrackerDB.bars[selectedBar]
+  lockCheck:SetChecked(bar.locked)
+  iconSizeSlider:SetValue(bar.iconSize)
+  columnsSlider:SetValue(bar.columns)
+  scaleSlider:SetValue(bar.scale)
+  UIDropDownMenu_SetSelectedValue(growthDropdown, bar.growth)
+  UIDropDownMenu_SetText(growthDropdown, bar.growth)
+end
+
+local function RefreshBarUI()
+  local bar = ItemTrackerDB.bars[selectedBar]
+  UIDropDownMenu_SetSelectedValue(barDropdown, selectedBar)
+  UIDropDownMenu_SetText(barDropdown, bar.name)
+  barNameBox:SetText(bar.name)
+  if #ItemTrackerDB.bars > 1 then
+    deleteBarButton:Enable()
+  else
+    deleteBarButton:Disable()
+  end
+  RefreshList()
+  RefreshBarOptions()
+end
+
 local function CreateRow(index)
   local row = CreateFrame("Frame", "ItemTrackerConfigRow" .. index, frame)
   row:SetSize(236, ROW_HEIGHT)
@@ -57,14 +91,14 @@ local function CreateRow(index)
   row.thresholdBox:SetNumeric(true)
   row.thresholdBox:SetScript("OnEnterPressed", function(self)
     local threshold = tonumber(self:GetText()) or 1
-    ItemTracker.Logic.SetThreshold(ItemTrackerDB.items, row.itemID, threshold)
+    ItemTracker.Logic.SetThreshold(ItemTrackerDB.bars[selectedBar].items, row.itemID, threshold)
     self:ClearFocus()
-    ItemTracker.Bar.Refresh()
+    ItemTracker.Bar.RefreshAll()
   end)
   row.thresholdBox:SetScript("OnEditFocusLost", function(self)
     local threshold = tonumber(self:GetText()) or 1
-    ItemTracker.Logic.SetThreshold(ItemTrackerDB.items, row.itemID, threshold)
-    ItemTracker.Bar.Refresh()
+    ItemTracker.Logic.SetThreshold(ItemTrackerDB.bars[selectedBar].items, row.itemID, threshold)
+    ItemTracker.Bar.RefreshAll()
   end)
   row.thresholdBox:SetScript("OnEscapePressed", function(self)
     self:ClearFocus()
@@ -75,9 +109,9 @@ local function CreateRow(index)
   row.removeButton:SetSize(20, 20)
   row.removeButton:SetPoint("RIGHT", -4, 0)
   row.removeButton:SetScript("OnClick", function()
-    ItemTracker.Logic.RemoveItem(ItemTrackerDB.items, row.itemID)
+    ItemTracker.Logic.RemoveItem(ItemTrackerDB.bars[selectedBar].items, row.itemID)
     RefreshList()
-    ItemTracker.Bar.Refresh()
+    ItemTracker.Bar.RefreshAll()
   end)
 
   return row
@@ -92,14 +126,14 @@ local function TryAddItemID(itemID)
     ShowAddError("item not found")
     return
   end
-  local ok, err = ItemTracker.Logic.AddItem(ItemTrackerDB.items, itemID, 1)
+  local ok, err = ItemTracker.Logic.AddItem(ItemTrackerDB.bars[selectedBar].items, itemID, 1)
   if not ok then
     ShowAddError(err)
     return
   end
   ShowAddError(nil)
   RefreshList()
-  ItemTracker.Bar.Refresh()
+  ItemTracker.Bar.RefreshAll()
 end
 
 local function HandleAddInput(text)
@@ -126,16 +160,72 @@ local function HandleCursorDrop()
   end
 end
 
-local function CreateBarOptions(parent, anchorTo)
-  local lockCheck = CreateFrame("CheckButton", "ItemTrackerConfigLockCheck", parent, "UICheckButtonTemplate")
-  lockCheck:SetPoint("TOPLEFT", anchorTo, "BOTTOMLEFT", 0, -16)
-  _G[lockCheck:GetName() .. "Text"]:SetText("Lock bar")
-  lockCheck:SetChecked(ItemTrackerDB.bar.locked)
-  lockCheck:SetScript("OnClick", function(self)
-    ItemTracker.Bar.SetLocked(self:GetChecked() and true or false)
+local function CreateBarSelector(parent)
+  barDropdown = CreateFrame("Frame", "ItemTrackerConfigBarDropdown", parent, "UIDropDownMenuTemplate")
+  barDropdown:SetPoint("TOPLEFT", parent, "TOPLEFT", 5, -50)
+  UIDropDownMenu_SetWidth(barDropdown, 110)
+  UIDropDownMenu_Initialize(barDropdown, function(self, level)
+    for index, bar in ipairs(ItemTrackerDB.bars) do
+      local option = UIDropDownMenu_CreateInfo()
+      option.text = bar.name
+      option.value = index
+      option.func = function(self)
+        selectedBar = self.value
+        ItemTrackerDB.config.selectedBar = selectedBar
+        RefreshBarUI()
+      end
+      UIDropDownMenu_AddButton(option, level)
+    end
   end)
 
-  local function CreateSlider(name, label, anchor, minVal, maxVal, step, getter, setter)
+  barNameBox = CreateFrame("EditBox", "ItemTrackerConfigBarNameBox", parent, "InputBoxTemplate")
+  barNameBox:SetSize(90, 20)
+  barNameBox:SetPoint("LEFT", barDropdown, "RIGHT", 10, 2)
+  barNameBox:SetAutoFocus(false)
+  local function CommitBarName(self)
+    ItemTracker.Logic.RenameBar(ItemTrackerDB.bars, selectedBar, self:GetText())
+    RefreshBarUI()
+  end
+  barNameBox:SetScript("OnEnterPressed", function(self)
+    CommitBarName(self)
+    self:ClearFocus()
+  end)
+  barNameBox:SetScript("OnEditFocusLost", CommitBarName)
+
+  newBarButton = CreateFrame("Button", "ItemTrackerConfigNewBarButton", parent, "UIPanelButtonTemplate")
+  newBarButton:SetSize(50, 20)
+  newBarButton:SetText("New")
+  newBarButton:SetPoint("LEFT", barNameBox, "RIGHT", 6, 0)
+  newBarButton:SetScript("OnClick", function()
+    local newIndex = ItemTracker.Logic.AddBar(ItemTrackerDB.bars, "Bar " .. (#ItemTrackerDB.bars + 1), ItemTracker.Logic.DEFAULT_DB.bars[1])
+    selectedBar = newIndex
+    ItemTrackerDB.config.selectedBar = selectedBar
+    ItemTracker.Bar.RebuildAll()
+    RefreshBarUI()
+  end)
+
+  deleteBarButton = CreateFrame("Button", "ItemTrackerConfigDeleteBarButton", parent, "UIPanelButtonTemplate")
+  deleteBarButton:SetSize(24, 20)
+  deleteBarButton:SetText("X")
+  deleteBarButton:SetPoint("LEFT", newBarButton, "RIGHT", 4, 0)
+  deleteBarButton:SetScript("OnClick", function()
+    if #ItemTrackerDB.bars <= 1 then
+      return
+    end
+    local bar = ItemTrackerDB.bars[selectedBar]
+    StaticPopup_Show("ITEMTRACKER_DELETE_BAR", bar.name, #bar.items, { index = selectedBar })
+  end)
+end
+
+local function CreateBarOptions(parent, anchorTo)
+  lockCheck = CreateFrame("CheckButton", "ItemTrackerConfigLockCheck", parent, "UICheckButtonTemplate")
+  lockCheck:SetPoint("TOPLEFT", anchorTo, "BOTTOMLEFT", 0, -16)
+  _G[lockCheck:GetName() .. "Text"]:SetText("Lock bar")
+  lockCheck:SetScript("OnClick", function(self)
+    ItemTracker.Bar.SetLocked(selectedBar, self:GetChecked() and true or false)
+  end)
+
+  local function CreateSlider(name, label, anchor, minVal, maxVal, step, setter)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
     slider:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -24)
     slider:SetMinMaxValues(minVal, maxVal)
@@ -144,27 +234,23 @@ local function CreateBarOptions(parent, anchorTo)
     _G[name .. "Text"]:SetText(label)
     _G[name .. "Low"]:SetText(tostring(minVal))
     _G[name .. "High"]:SetText(tostring(maxVal))
-    slider:SetValue(getter())
     slider:SetScript("OnValueChanged", function(self, value)
       setter(value)
-      ItemTracker.Bar.Refresh()
+      ItemTracker.Bar.RefreshAll()
     end)
     return slider
   end
 
-  local iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", lockCheck, 16, 64, 1,
-    function() return ItemTrackerDB.bar.iconSize end,
-    function(value) ItemTrackerDB.bar.iconSize = value end)
+  iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", lockCheck, 16, 64, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].iconSize = value end)
 
-  local columnsSlider = CreateSlider("ItemTrackerConfigColumns", "Columns", iconSizeSlider, 1, 20, 1,
-    function() return ItemTrackerDB.bar.columns end,
-    function(value) ItemTrackerDB.bar.columns = value end)
+  columnsSlider = CreateSlider("ItemTrackerConfigColumns", "Columns", iconSizeSlider, 1, 20, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].columns = value end)
 
-  local scaleSlider = CreateSlider("ItemTrackerConfigScale", "Scale", columnsSlider, 0.5, 2, 0.05,
-    function() return ItemTrackerDB.bar.scale end,
-    function(value) ItemTrackerDB.bar.scale = value end)
+  scaleSlider = CreateSlider("ItemTrackerConfigScale", "Scale", columnsSlider, 0.5, 2, 0.05,
+    function(value) ItemTrackerDB.bars[selectedBar].scale = value end)
 
-  local growthDropdown = CreateFrame("Frame", "ItemTrackerConfigGrowthDropdown", parent, "UIDropDownMenuTemplate")
+  growthDropdown = CreateFrame("Frame", "ItemTrackerConfigGrowthDropdown", parent, "UIDropDownMenuTemplate")
   growthDropdown:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", -16, -24)
   UIDropDownMenu_SetWidth(growthDropdown, 100)
   UIDropDownMenu_Initialize(growthDropdown, function(self, level)
@@ -173,30 +259,47 @@ local function CreateBarOptions(parent, anchorTo)
       option.text = direction
       option.value = direction
       option.func = function(self)
-        ItemTrackerDB.bar.growth = self.value
+        ItemTrackerDB.bars[selectedBar].growth = self.value
         UIDropDownMenu_SetSelectedValue(growthDropdown, self.value)
         UIDropDownMenu_SetText(growthDropdown, self.value)
-        ItemTracker.Bar.Refresh()
+        ItemTracker.Bar.RefreshAll()
       end
       UIDropDownMenu_AddButton(option, level)
     end
   end)
-  UIDropDownMenu_SetSelectedValue(growthDropdown, ItemTrackerDB.bar.growth)
-  UIDropDownMenu_SetText(growthDropdown, ItemTrackerDB.bar.growth)
-
-  return {
-    lockCheck = lockCheck,
-    sliders = { iconSizeSlider, columnsSlider, scaleSlider },
-    growthDropdown = growthDropdown,
-  }
 end
+
+StaticPopupDialogs["ITEMTRACKER_DELETE_BAR"] = {
+  text = "Delete '%s'? This removes its %d tracked items.",
+  button1 = YES,
+  button2 = NO,
+  OnAccept = function(self, data)
+    local ok = ItemTracker.Logic.RemoveBar(ItemTrackerDB.bars, data.index)
+    if ok then
+      if selectedBar > #ItemTrackerDB.bars then
+        selectedBar = #ItemTrackerDB.bars
+      end
+      ItemTrackerDB.config.selectedBar = selectedBar
+      ItemTracker.Bar.RebuildAll()
+      RefreshBarUI()
+    end
+  end,
+  timeout = 0,
+  whileDead = true,
+  hideOnEscape = true,
+}
 
 function ItemTracker.Config.Create()
   if frame then
     return
   end
+  selectedBar = ItemTrackerDB.config.selectedBar or 1
+  if selectedBar > #ItemTrackerDB.bars then
+    selectedBar = #ItemTrackerDB.bars
+  end
+
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(300, 650)
+  frame:SetSize(340, 700)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -222,15 +325,17 @@ function ItemTracker.Config.Create()
   title:SetPoint("TOP", 0, -16)
   title:SetText("Item Tracker")
 
-  local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  instructions:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -40)
-  instructions:SetWidth(260)
-  instructions:SetJustifyH("LEFT")
-  instructions:SetText("Type an item name, link, or ID and press Enter, or drag an item onto the slot below.")
-
   local closeButton = CreateFrame("Button", "ItemTrackerConfigCloseButton", frame, "UIPanelCloseButton")
   closeButton:SetPoint("TOPRIGHT", -4, -4)
   closeButton:SetScript("OnClick", function() frame:Hide() end)
+
+  CreateBarSelector(frame)
+
+  local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  instructions:SetPoint("TOPLEFT", barDropdown, "BOTTOMLEFT", 15, -10)
+  instructions:SetWidth(290)
+  instructions:SetJustifyH("LEFT")
+  instructions:SetText("Type an item name, link, or ID and press Enter, or drag an item onto the slot below.")
 
   addEditBox = CreateFrame("EditBox", "ItemTrackerConfigAddBox", frame, "InputBoxTemplate")
   addEditBox:SetSize(180, 24)
@@ -292,7 +397,7 @@ function ItemTracker.Config.Create()
     rows[index] = row
   end
 
-  local barOptions = CreateBarOptions(frame, scrollFrame)
+  CreateBarOptions(frame, scrollFrame)
 
   frame:Hide()
   table.insert(UISpecialFrames, "ItemTrackerConfig")
@@ -305,13 +410,16 @@ function ItemTracker.Config.Create()
   end
 
   ItemTracker.Skins.ApplyElvUIToConfig(frame, {
+    buttons = { newBarButton, deleteBarButton },
     closeButtons = { closeButton, unpack(removeButtons) },
-    checkboxes = { barOptions.lockCheck },
-    editboxes = { addEditBox, unpack(thresholdBoxes) },
-    sliders = barOptions.sliders,
-    dropdowns = { { frame = barOptions.growthDropdown, width = 100 } },
+    checkboxes = { lockCheck },
+    editboxes = { addEditBox, barNameBox, unpack(thresholdBoxes) },
+    sliders = { iconSizeSlider, columnsSlider, scaleSlider },
+    dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 100 } },
     plainFrames = { dragSlot },
   })
+
+  RefreshBarUI()
 end
 
 function ItemTracker.Config.Toggle()
