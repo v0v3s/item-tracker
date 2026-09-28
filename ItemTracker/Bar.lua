@@ -42,36 +42,38 @@ end
 local function CreateButton(parentFrame, barIndex, buttonIndex)
   local button = CreateFrame("Button", "ItemTrackerBarButton" .. barIndex .. "_" .. buttonIndex, parentFrame)
   button:SetSize(36, 36)
-
-  button.border = button:CreateTexture(nil, "BACKGROUND")
-  button.border:SetAllPoints(button)
-  button.border:SetTexture(1, 1, 1)
-  button.border:SetVertexColor(0, 0, 0)
-
-  button.icon = button:CreateTexture(nil, "ARTWORK")
-  button.icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-  button.icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
-  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-  button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
-  button.count:SetPoint("BOTTOMRIGHT", -2, 2)
-
-  button:SetScript("OnEnter", function(self)
-    if not (ItemTrackerDB.bars[barIndex].showTooltip and self.itemID) then
-      return
-    end
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetHyperlink("item:" .. self.itemID)
-    GameTooltip:Show()
-  end)
-  button:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
-
   button.barIndex = barIndex
-  button:RegisterForDrag("LeftButton")
-  button:SetScript("OnDragStart", StartBarDrag)
-  button:SetScript("OnDragStop", StopBarDrag)
+
+  if not button.border then
+    button.border = button:CreateTexture(nil, "BACKGROUND")
+    button.border:SetAllPoints(button)
+    button.border:SetTexture(1, 1, 1)
+    button.border:SetVertexColor(0, 0, 0)
+
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
+    button.icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -1, 1)
+    button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+    button.count:SetPoint("BOTTOMRIGHT", -2, 2)
+
+    button:SetScript("OnEnter", function(self)
+      if not (ItemTrackerDB.bars[self.barIndex].showTooltip and self.itemID) then
+        return
+      end
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetHyperlink("item:" .. self.itemID)
+      GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+      GameTooltip:Hide()
+    end)
+
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnDragStart", StartBarDrag)
+    button:SetScript("OnDragStop", StopBarDrag)
+  end
 
   return button
 end
