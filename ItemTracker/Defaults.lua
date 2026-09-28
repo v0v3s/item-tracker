@@ -2,14 +2,18 @@ ItemTracker = ItemTracker or {}
 ItemTracker.Logic = ItemTracker.Logic or {}
 
 ItemTracker.Logic.DEFAULT_DB = {
-  items = {},
-  bar = {
-    point = "CENTER", relPoint = "CENTER", x = 0, y = 0,
-    iconSize = 36, columns = 8, spacing = 4, growth = "RIGHT",
-    scale = 1.0, locked = false, showTooltip = true,
+  bars = {
+    {
+      name = "Bar 1",
+      items = {},
+      point = "CENTER", relPoint = "CENTER", x = 0, y = 0,
+      iconSize = 36, columns = 8, spacing = 4, growth = "RIGHT",
+      scale = 1.0, locked = false, showTooltip = true,
+    },
   },
   config = {
     point = "CENTER", relPoint = "CENTER", x = 0, y = 100,
+    selectedBar = 1,
   },
 }
 
@@ -36,6 +40,29 @@ function ItemTracker.Logic.MergeDefaults(saved, defaults)
     elseif type(defaultValue) == "table" and type(saved[key]) == "table" then
       ItemTracker.Logic.MergeDefaults(saved[key], defaultValue)
     end
+  end
+  return saved
+end
+
+-- One-time migration: converts the old single-bar saved shape
+-- (top-level `items` + `bar` keys) into the new `bars` array shape, if
+-- present. Also clears an empty `bars` array (corrupted/hand-edited
+-- data) back to nil so the caller's subsequent MergeDefaults call can
+-- repopulate it with a fresh default bar. No-op if `saved.bars` is
+-- already a non-empty array, or if there's no legacy data at all
+-- (fresh install). Mutates and returns `saved`.
+function ItemTracker.Logic.MigrateLegacyBar(saved)
+  saved = saved or {}
+  if not saved.bars and saved.items and saved.bar then
+    local migratedBar = deepCopy(saved.bar)
+    migratedBar.name = "Bar 1"
+    migratedBar.items = saved.items
+    saved.bars = { migratedBar }
+    saved.items = nil
+    saved.bar = nil
+  end
+  if saved.bars and #saved.bars == 0 then
+    saved.bars = nil
   end
   return saved
 end
