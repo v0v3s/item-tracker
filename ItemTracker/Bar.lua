@@ -149,10 +149,15 @@ end
 
 -- Re-lays-out and re-colors every existing bar frame from its current
 -- ItemTrackerDB.bars entry. Does not recreate frames -- this is the hot
--- path, called on every BAG_UPDATE etc.
+-- path, called on every BAG_UPDATE etc. Iterates ItemTrackerDB.bars (the
+-- authoritative count), not barFrames -- since frames are now pooled
+-- rather than recreated each RebuildAll, barFrames can hold more entries
+-- than there are current bars (hidden, orphaned by a deletion), and
+-- indexing ItemTrackerDB.bars by one of those stale trailing indexes
+-- would be nil.
 function ItemTracker.Bar.RefreshAll()
-  for barIndex, entry in ipairs(barFrames) do
-    entry.frame:SetScale(ItemTrackerDB.bars[barIndex].scale)
+  for barIndex, bar in ipairs(ItemTrackerDB.bars) do
+    barFrames[barIndex].frame:SetScale(bar.scale)
     LayoutBar(barIndex)
   end
 end

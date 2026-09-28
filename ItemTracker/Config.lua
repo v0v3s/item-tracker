@@ -20,6 +20,13 @@ local columnsSlider
 local scaleSlider
 local growthDropdown
 
+local function FormatSliderValue(value, step)
+  if step >= 1 then
+    return tostring(math.floor(value + 0.5))
+  end
+  return string.format("%.2f", value)
+end
+
 local function RefreshList()
   local items = ItemTrackerDB.bars[selectedBar].items
   FauxScrollFrame_Update(scrollFrame, #items, NUM_VISIBLE_ROWS, ROW_HEIGHT)
@@ -50,8 +57,11 @@ local function RefreshBarOptions()
   local bar = ItemTrackerDB.bars[selectedBar]
   lockCheck:SetChecked(bar.locked)
   iconSizeSlider:SetValue(bar.iconSize)
+  iconSizeSlider.valueBox:SetText(FormatSliderValue(bar.iconSize, 1))
   columnsSlider:SetValue(bar.columns)
+  columnsSlider.valueBox:SetText(FormatSliderValue(bar.columns, 1))
   scaleSlider:SetValue(bar.scale)
+  scaleSlider.valueBox:SetText(FormatSliderValue(bar.scale, 0.05))
   UIDropDownMenu_SetSelectedValue(growthDropdown, bar.growth)
   UIDropDownMenu_SetText(growthDropdown, bar.growth)
 end
@@ -235,10 +245,34 @@ local function CreateBarOptions(parent, anchorTo)
     _G[name .. "Text"]:SetText(label)
     _G[name .. "Low"]:SetText(tostring(minVal))
     _G[name .. "High"]:SetText(tostring(maxVal))
+
+    local valueBox = CreateFrame("EditBox", name .. "ValueBox", parent, "InputBoxTemplate")
+    valueBox:SetSize(40, 18)
+    valueBox:SetAutoFocus(false)
+    valueBox:SetPoint("LEFT", slider, "RIGHT", 12, 0)
+
+    local function CommitValueBox()
+      local value = tonumber(valueBox:GetText())
+      if value then
+        slider:SetValue(math.max(minVal, math.min(maxVal, value)))
+      end
+      valueBox:SetText(FormatSliderValue(slider:GetValue(), step))
+      valueBox:ClearFocus()
+    end
+    valueBox:SetScript("OnEnterPressed", CommitValueBox)
+    valueBox:SetScript("OnEscapePressed", function(self)
+      self:SetText(FormatSliderValue(slider:GetValue(), step))
+      self:ClearFocus()
+    end)
+    valueBox:SetScript("OnEditFocusLost", CommitValueBox)
+
     slider:SetScript("OnValueChanged", function(self, value)
       setter(value)
+      valueBox:SetText(FormatSliderValue(value, step))
       ItemTracker.Bar.RefreshAll()
     end)
+
+    slider.valueBox = valueBox
     return slider
   end
 
@@ -417,7 +451,7 @@ function ItemTracker.Config.Create()
     buttons = { newBarButton, deleteBarButton },
     closeButtons = { closeButton, unpack(removeButtons) },
     checkboxes = { lockCheck },
-    editboxes = { addEditBox, barNameBox, unpack(thresholdBoxes) },
+    editboxes = { addEditBox, barNameBox, unpack(thresholdBoxes), iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox },
     sliders = { iconSizeSlider, columnsSlider, scaleSlider },
     dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 100 } },
     plainFrames = { dragSlot },
