@@ -254,6 +254,7 @@ local function CreateBarOptions(parent, anchorTo)
     local function CommitValueBox()
       local value = tonumber(valueBox:GetText())
       if value then
+        value = math.floor(value / step + 0.5) * step
         slider:SetValue(math.max(minVal, math.min(maxVal, value)))
       end
       valueBox:SetText(FormatSliderValue(slider:GetValue(), step))
@@ -451,7 +452,7 @@ function ItemTracker.Config.Create()
     buttons = { newBarButton, deleteBarButton },
     closeButtons = { closeButton, unpack(removeButtons) },
     checkboxes = { lockCheck },
-    editboxes = { addEditBox, barNameBox, unpack(thresholdBoxes), iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox },
+    editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox, unpack(thresholdBoxes) },
     sliders = { iconSizeSlider, columnsSlider, scaleSlider },
     dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 100 } },
     plainFrames = { dragSlot },

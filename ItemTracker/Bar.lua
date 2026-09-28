@@ -154,11 +154,16 @@ end
 -- rather than recreated each RebuildAll, barFrames can hold more entries
 -- than there are current bars (hidden, orphaned by a deletion), and
 -- indexing ItemTrackerDB.bars by one of those stale trailing indexes
--- would be nil.
+-- would be nil. Also guards against running before the first RebuildAll
+-- (e.g. a BAG_UPDATE during the loading screen, before
+-- PLAYER_ENTERING_WORLD has created any frame yet).
 function ItemTracker.Bar.RefreshAll()
   for barIndex, bar in ipairs(ItemTrackerDB.bars) do
-    barFrames[barIndex].frame:SetScale(bar.scale)
-    LayoutBar(barIndex)
+    local entry = barFrames[barIndex]
+    if entry then
+      entry.frame:SetScale(bar.scale)
+      LayoutBar(barIndex)
+    end
   end
 end
 
