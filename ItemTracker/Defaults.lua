@@ -44,6 +44,19 @@ function ItemTracker.Logic.MergeDefaults(saved, defaults)
   return saved
 end
 
+-- Fills in any keys missing from EVERY bar in `bars` using `template`
+-- (normally DEFAULT_DB.bars[1]) -- unlike a single top-level
+-- MergeDefaults(saved, DEFAULT_DB) call, which only ever reaches
+-- bars[1] since DEFAULT_DB.bars has just one template entry, this
+-- reaches every bar, so a future per-bar key added to the template
+-- also backfills bars created before that key existed.
+function ItemTracker.Logic.MergeAllBarDefaults(bars, template)
+  for _, bar in ipairs(bars) do
+    ItemTracker.Logic.MergeDefaults(bar, template)
+  end
+  return bars
+end
+
 -- One-time migration: converts the old single-bar saved shape
 -- (top-level `items` + `bar` keys) into the new `bars` array shape, if
 -- present. Also clears an empty `bars` array (corrupted/hand-edited

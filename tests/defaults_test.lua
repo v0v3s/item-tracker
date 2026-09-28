@@ -50,4 +50,11 @@ assert(fixedUp.bars == nil, "an empty bars array should be cleared so MergeDefau
 local recovered = ItemTracker.Logic.MergeDefaults(fixedUp, ItemTracker.Logic.DEFAULT_DB)
 assert(#recovered.bars == 1 and recovered.bars[1].name == "Bar 1", "recovered data should have exactly one default bar")
 
+-- MergeAllBarDefaults: every bar gets missing keys filled from the
+-- template, not just the first one (simulates a future new per-bar key)
+local multiBar = { { name = "Bar 1", iconSize = 36 }, { name = "Bar 2" } }
+ItemTracker.Logic.MergeAllBarDefaults(multiBar, { iconSize = 99, columns = 8 })
+assert(multiBar[1].iconSize == 36, "existing bar 1 value should not be overwritten")
+assert(multiBar[2].iconSize == 99 and multiBar[2].columns == 8, "bar 2 missing keys should be filled from the template too")
+
 print("defaults_test: all assertions passed")

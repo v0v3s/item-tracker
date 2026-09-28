@@ -101,34 +101,49 @@ local function LayoutBar(barIndex)
   entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#bar.items, bar))
 end
 
--- Hides every existing bar frame and creates one fresh frame per entry
--- in ItemTrackerDB.bars. Called on login, and again whenever a bar is
--- added or removed -- a rare, deliberate action, not the hot path, so
--- recreating everything is simpler than tracking stable bar IDs to
--- patch a single frame. Any leftover frame from a deleted bar (there
--- are now fewer entries than before) stays hidden forever, an
--- accepted, negligible one-time cost -- see the spec's Open Risks.
-function ItemTracker.Bar.RebuildAll()
-  for _, entry in ipairs(barFrames) do
-    entry.frame:Hide()
-  end
-  barFrames = {}
-
-  for barIndex, bar in ipairs(ItemTrackerDB.bars) do
+-- Creates the bar frame for `barIndex` the FIRST time it's needed, and
+-- reuses the same frame object on every later call -- WoW's CreateFrame
+-- does not reuse an existing same-named frame (it creates a brand-new
+-- one and repoints the global, orphaning the old object, which can
+-- never be garbage-collected), so calling CreateFrame more than once
+-- per barIndex per session would leak an entire frame tree every time.
+local function EnsureBarFrame(barIndex, bar)
+  local entry = barFrames[barIndex]
+  if not entry then
     local frame = CreateFrame("Frame", "ItemTrackerBar" .. barIndex, UIParent)
-    frame:SetPoint(bar.point, UIParent, bar.relPoint, bar.x, bar.y)
-    frame:SetScale(bar.scale)
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:SetClampedToScreen(true)
-    frame:RegisterForDrag("LeftButton")
-    frame.barIndex = barIndex
-    frame:SetScript("OnDragStart", StartBarDrag)
-    frame:SetScript("OnDragStop", StopBarDrag)
-    frame:Show()
+    entry = { frame = frame, buttons = {} }
+    barFrames[barIndex] = entry
+  end
+  local frame = entry.frame
+  frame:ClearAllPoints()
+  frame:SetPoint(bar.point, UIParent, bar.relPoint, bar.x, bar.y)
+  frame:SetScale(bar.scale)
+  frame:SetMovable(true)
+  frame:EnableMouse(true)
+  frame:SetClampedToScreen(true)
+  frame:RegisterForDrag("LeftButton")
+  frame.barIndex = barIndex
+  frame:SetScript("OnDragStart", StartBarDrag)
+  frame:SetScript("OnDragStop", StopBarDrag)
+  frame:Show()
+  return entry
+end
 
-    barFrames[barIndex] = { frame = frame, buttons = {} }
+-- Reconciles the live bar frames with ItemTrackerDB.bars: reuses each
+-- bar's frame (and its pooled buttons, via LayoutBar) across calls
+-- instead of recreating them, since WoW frames are never destroyed.
+-- Creates a frame only for a barIndex that has never had one before;
+-- hides (never discards) any frame whose barIndex no longer exists.
+-- Safe to call on every PLAYER_ENTERING_WORLD (every zone change), and
+-- whenever a bar is added or removed.
+function ItemTracker.Bar.RebuildAll()
+  local bars = ItemTrackerDB.bars
+  for barIndex, bar in ipairs(bars) do
+    EnsureBarFrame(barIndex, bar)
     LayoutBar(barIndex)
+  end
+  for barIndex = #bars + 1, #barFrames do
+    barFrames[barIndex].frame:Hide()
   end
 end
 

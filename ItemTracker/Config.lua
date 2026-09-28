@@ -198,6 +198,7 @@ local function CreateBarSelector(parent)
   newBarButton:SetPoint("LEFT", barNameBox, "RIGHT", 6, 0)
   newBarButton:SetScript("OnClick", function()
     local newIndex = ItemTracker.Logic.AddBar(ItemTrackerDB.bars, "Bar " .. (#ItemTrackerDB.bars + 1), ItemTracker.Logic.DEFAULT_DB.bars[1])
+    ItemTrackerDB.bars[newIndex].y = -(newIndex - 1) * 50
     selectedBar = newIndex
     ItemTrackerDB.config.selectedBar = selectedBar
     ItemTracker.Bar.RebuildAll()
@@ -276,6 +277,9 @@ StaticPopupDialogs["ITEMTRACKER_DELETE_BAR"] = {
   OnAccept = function(self, data)
     local ok = ItemTracker.Logic.RemoveBar(ItemTrackerDB.bars, data.index)
     if ok then
+      if data.index < selectedBar then
+        selectedBar = selectedBar - 1
+      end
       if selectedBar > #ItemTrackerDB.bars then
         selectedBar = #ItemTrackerDB.bars
       end
