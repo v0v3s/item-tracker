@@ -9,6 +9,7 @@ Defaults.lua
 Threshold.lua
 ItemInput.lua
 ItemList.lua
+BarCollection.lua
 BarLayout.lua
 ItemData.lua
 ElvUISkin.lua
