@@ -1,22 +1,29 @@
 ItemTracker = ItemTracker or {}
 ItemTracker.Bar = ItemTracker.Bar or {}
 
-local frame
-local buttons = {}
+local barFrames = {}
 
-local function StartBarDrag()
-  if not ItemTrackerDB.bar.locked then
-    frame:StartMoving()
+-- Shared by both a bar's own frame and every icon button on it (both
+-- get `.barIndex` set) -- always moves the BAR frame for that index,
+-- never `self` directly, since a button's own StartMoving() would just
+-- drag the button.
+local function StartBarDrag(self)
+  local bar = ItemTrackerDB.bars[self.barIndex]
+  if bar and not bar.locked then
+    barFrames[self.barIndex].frame:StartMoving()
   end
 end
 
-local function StopBarDrag()
+local function StopBarDrag(self)
+  local barIndex = self.barIndex
+  local frame = barFrames[barIndex].frame
   frame:StopMovingOrSizing()
   local point, _, relPoint, x, y = frame:GetPoint()
-  ItemTrackerDB.bar.point = point
-  ItemTrackerDB.bar.relPoint = relPoint
-  ItemTrackerDB.bar.x = x
-  ItemTrackerDB.bar.y = y
+  local bar = ItemTrackerDB.bars[barIndex]
+  bar.point = point
+  bar.relPoint = relPoint
+  bar.x = x
+  bar.y = y
 end
 
 local function ApplyButtonAppearance(button, itemID, count, threshold)
@@ -32,8 +39,8 @@ local function ApplyButtonAppearance(button, itemID, count, threshold)
   end
 end
 
-local function CreateButton(index)
-  local button = CreateFrame("Button", "ItemTrackerBarButton" .. index, frame)
+local function CreateButton(parentFrame, barIndex, buttonIndex)
+  local button = CreateFrame("Button", "ItemTrackerBarButton" .. barIndex .. "_" .. buttonIndex, parentFrame)
   button:SetSize(36, 36)
 
   button.border = button:CreateTexture(nil, "BACKGROUND")
@@ -50,7 +57,7 @@ local function CreateButton(index)
   button.count:SetPoint("BOTTOMRIGHT", -2, 2)
 
   button:SetScript("OnEnter", function(self)
-    if not (ItemTrackerDB.bar.showTooltip and self.itemID) then
+    if not (ItemTrackerDB.bars[barIndex].showTooltip and self.itemID) then
       return
     end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -61,6 +68,7 @@ local function CreateButton(index)
     GameTooltip:Hide()
   end)
 
+  button.barIndex = barIndex
   button:RegisterForDrag("LeftButton")
   button:SetScript("OnDragStart", StartBarDrag)
   button:SetScript("OnDragStop", StopBarDrag)
@@ -68,58 +76,70 @@ local function CreateButton(index)
   return button
 end
 
-local function GetButton(index)
-  local button = buttons[index]
-  if not button then
-    button = CreateButton(index)
-    buttons[index] = button
-  end
-  return button
-end
-
-local function LayoutButtons()
-  local barOpts = ItemTrackerDB.bar
-  local items = ItemTrackerDB.items
-  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#items, barOpts.columns, barOpts.iconSize, barOpts.spacing, barOpts.growth)
-  for index, entry in ipairs(items) do
-    local button = GetButton(index)
-    local x, y = ItemTracker.Logic.ComputeSlotPosition(index, barOpts.columns, barOpts.iconSize, barOpts.spacing, barOpts.growth)
+local function LayoutBar(barIndex)
+  local entry = barFrames[barIndex]
+  local bar = ItemTrackerDB.bars[barIndex]
+  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#bar.items, bar.columns, bar.iconSize, bar.spacing, bar.growth)
+  for itemIndex, item in ipairs(bar.items) do
+    local button = entry.buttons[itemIndex]
+    if not button then
+      button = CreateButton(entry.frame, barIndex, itemIndex)
+      entry.buttons[itemIndex] = button
+    end
+    local x, y = ItemTracker.Logic.ComputeSlotPosition(itemIndex, bar.columns, bar.iconSize, bar.spacing, bar.growth)
     button:ClearAllPoints()
-    button:SetPoint("TOPLEFT", frame, "TOPLEFT", x + originX, y + originY)
-    button:SetSize(barOpts.iconSize, barOpts.iconSize)
-    ApplyButtonAppearance(button, entry.itemID, ItemTracker.ItemData.GetTrackedCount(entry.itemID), entry.threshold)
+    button:SetPoint("TOPLEFT", entry.frame, "TOPLEFT", x + originX, y + originY)
+    button:SetSize(bar.iconSize, bar.iconSize)
+    ApplyButtonAppearance(button, item.itemID, ItemTracker.ItemData.GetTrackedCount(item.itemID), item.threshold)
     button:Show()
   end
-  for index = #items + 1, #buttons do
-    buttons[index]:Hide()
+  for itemIndex = #bar.items + 1, #entry.buttons do
+    entry.buttons[itemIndex]:Hide()
   end
-  frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#items, barOpts))
+  entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#bar.items, bar))
 end
 
-function ItemTracker.Bar.Create()
-  if frame then
-    return
+-- Hides every existing bar frame and creates one fresh frame per entry
+-- in ItemTrackerDB.bars. Called on login, and again whenever a bar is
+-- added or removed -- a rare, deliberate action, not the hot path, so
+-- recreating everything is simpler than tracking stable bar IDs to
+-- patch a single frame. Any leftover frame from a deleted bar (there
+-- are now fewer entries than before) stays hidden forever, an
+-- accepted, negligible one-time cost -- see the spec's Open Risks.
+function ItemTracker.Bar.RebuildAll()
+  for _, entry in ipairs(barFrames) do
+    entry.frame:Hide()
   end
-  frame = CreateFrame("Frame", "ItemTrackerBar", UIParent)
-  frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#ItemTrackerDB.items, ItemTrackerDB.bar))
-  frame:SetPoint(ItemTrackerDB.bar.point, UIParent, ItemTrackerDB.bar.relPoint, ItemTrackerDB.bar.x, ItemTrackerDB.bar.y)
-  frame:SetScale(ItemTrackerDB.bar.scale)
-  frame:SetMovable(true)
-  frame:EnableMouse(true)
-  frame:SetClampedToScreen(true)
-  frame:RegisterForDrag("LeftButton")
-  frame:SetScript("OnDragStart", StartBarDrag)
-  frame:SetScript("OnDragStop", StopBarDrag)
+  barFrames = {}
+
+  for barIndex, bar in ipairs(ItemTrackerDB.bars) do
+    local frame = CreateFrame("Frame", "ItemTrackerBar" .. barIndex, UIParent)
+    frame:SetPoint(bar.point, UIParent, bar.relPoint, bar.x, bar.y)
+    frame:SetScale(bar.scale)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:SetClampedToScreen(true)
+    frame:RegisterForDrag("LeftButton")
+    frame.barIndex = barIndex
+    frame:SetScript("OnDragStart", StartBarDrag)
+    frame:SetScript("OnDragStop", StopBarDrag)
+    frame:Show()
+
+    barFrames[barIndex] = { frame = frame, buttons = {} }
+    LayoutBar(barIndex)
+  end
 end
 
-function ItemTracker.Bar.Refresh()
-  if not frame then
-    return
+-- Re-lays-out and re-colors every existing bar frame from its current
+-- ItemTrackerDB.bars entry. Does not recreate frames -- this is the hot
+-- path, called on every BAG_UPDATE etc.
+function ItemTracker.Bar.RefreshAll()
+  for barIndex, entry in ipairs(barFrames) do
+    entry.frame:SetScale(ItemTrackerDB.bars[barIndex].scale)
+    LayoutBar(barIndex)
   end
-  frame:SetScale(ItemTrackerDB.bar.scale)
-  LayoutButtons()
 end
 
-function ItemTracker.Bar.SetLocked(locked)
-  ItemTrackerDB.bar.locked = locked
+function ItemTracker.Bar.SetLocked(barIndex, locked)
+  ItemTrackerDB.bars[barIndex].locked = locked
 end
