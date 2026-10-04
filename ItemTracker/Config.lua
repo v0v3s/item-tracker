@@ -5,9 +5,9 @@ local ROW_HEIGHT = 36
 local NUM_VISIBLE_ROWS = 6
 
 -- Two-column layout below the bar selector row: parameters (category
--- filter, lock, sliders, growth) on the left, items (manual add-row/list,
--- or the filtered "Showing N items" readout) on the right, separated by a
--- vertical divider line.
+-- filter, lock, sliders, growth) on the left, items (the add-row plus the
+-- item list -- manually-curated or, while filtered, read-only and
+-- live-scanned) on the right, separated by a vertical divider line.
 local LEFT_COLUMN_X = 24
 local RIGHT_COLUMN_X = 300
 local DIVIDER_X = 280
@@ -42,26 +42,17 @@ local function FormatSliderValue(value, step)
   return string.format("%.2f", value)
 end
 
-local function RefreshFilterStatus()
-  local bar = ItemTrackerDB.bars[selectedBar]
-  if not bar.filter then
-    return
-  end
-  local items = ItemTracker.BagScan.FindMatchingItemIDs(bar.filter)
-  filterStatus:SetText("Showing " .. #items .. " items")
-end
-
--- Toggles the config window between its two mutually-exclusive layouts:
--- the manual add-row/item-list (shown == true) or the category-filter
--- "Showing N items" readout and shared threshold slider (shown == false).
--- Never mixed -- see the plan's Global Constraints.
+-- Toggles the config window's add-row and category-filter-only controls.
+-- The item list itself (scrollFrame/rows) is always shown -- see
+-- RefreshList -- only the manual add-item controls (not applicable to a
+-- live-scanned list) and the filter-only controls (readout, shared
+-- threshold) toggle here. Never mixed -- see the plan's Global Constraints.
 local function SetManualUIShown(shown)
   if shown then
     instructions:Show()
     addEditBox:Show()
     dragSlot:Show()
     addError:Show()
-    scrollFrame:Show()
     filterStatus:Hide()
     filterSubTypeDropdown:Hide()
     filterThresholdSlider:Hide()
@@ -71,10 +62,6 @@ local function SetManualUIShown(shown)
     addEditBox:Hide()
     dragSlot:Hide()
     addError:Hide()
-    scrollFrame:Hide()
-    for _, row in ipairs(rows) do
-      row:Hide()
-    end
     filterStatus:Show()
     filterSubTypeDropdown:Show()
     filterThresholdSlider:Show()
@@ -82,8 +69,22 @@ local function SetManualUIShown(shown)
   end
 end
 
+-- Populates the item list: bar.items (manually-curated, editable) when
+-- bar.filter is nil, or a fresh live scan (read-only -- no per-item
+-- threshold or remove control, since a filtered bar's membership and
+-- threshold aren't edited per-item) when a filter is active.
 local function RefreshList()
-  local items = ItemTrackerDB.bars[selectedBar].items
+  local bar = ItemTrackerDB.bars[selectedBar]
+  local items
+  if bar.filter then
+    items = {}
+    for _, itemID in ipairs(ItemTracker.BagScan.FindMatchingItemIDs(bar.filter)) do
+      table.insert(items, { itemID = itemID })
+    end
+    filterStatus:SetText("Showing " .. #items .. " items")
+  else
+    items = bar.items
+  end
   FauxScrollFrame_Update(scrollFrame, #items, NUM_VISIBLE_ROWS, ROW_HEIGHT)
   local offset = FauxScrollFrame_GetOffset(scrollFrame)
   for rowIndex = 1, NUM_VISIBLE_ROWS do
@@ -99,7 +100,14 @@ local function RefreshList()
           row.nameText:SetText(name)
         end
       end)
-      row.thresholdBox:SetText(tostring(entry.threshold))
+      if bar.filter then
+        row.thresholdBox:Hide()
+        row.removeButton:Hide()
+      else
+        row.thresholdBox:SetText(tostring(entry.threshold))
+        row.thresholdBox:Show()
+        row.removeButton:Show()
+      end
       row:Show()
     else
       row.itemID = nil
@@ -144,11 +152,7 @@ local function RefreshBarUI()
     deleteBarButton:Disable()
   end
   SetManualUIShown(bar.filter == nil)
-  if bar.filter == nil then
-    RefreshList()
-  else
-    RefreshFilterStatus()
-  end
+  RefreshList()
   RefreshBarOptions()
 end
 
@@ -345,7 +349,7 @@ local function CreateBarOptions(parent)
       bar.filter.itemSubType = nil
       ItemTracker.Bar.RefreshAll()
       RefreshBarOptions()
-      RefreshFilterStatus()
+      RefreshList()
     end
     UIDropDownMenu_AddButton(allOption, level)
 
@@ -358,7 +362,7 @@ local function CreateBarOptions(parent)
         bar.filter.itemSubType = self.value
         ItemTracker.Bar.RefreshAll()
         RefreshBarOptions()
-        RefreshFilterStatus()
+        RefreshList()
       end
       UIDropDownMenu_AddButton(option, level)
     end
@@ -587,8 +591,8 @@ function ItemTracker.Config.Create()
   end
 
   filterStatus = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  filterStatus:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 4, -4)
-  filterStatus:SetWidth(230)
+  filterStatus:SetPoint("TOPLEFT", frame, "TOPLEFT", RIGHT_COLUMN_X, CONTENT_TOP_Y)
+  filterStatus:SetWidth(260)
   filterStatus:SetJustifyH("LEFT")
   filterStatus:Hide()
 
