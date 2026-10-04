@@ -599,7 +599,7 @@ function ItemTracker.Config.Toggle()
   if frame:IsShown() then
     frame:Hide()
   else
-    RefreshList()
+    RefreshBarUI()
     frame:Show()
   end
 end
