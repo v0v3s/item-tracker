@@ -441,6 +441,11 @@ local function CreateBarOptions(parent)
 
   filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", growthDropdown, 0, 50, 1,
     function(value) ItemTrackerDB.bars[selectedBar].filterThreshold = value end)
+  -- CreateSlider anchors flush with its anchor's own x -- correct for
+  -- growthDropdown's own -16 compensation (UIDropDownMenuTemplate's
+  -- internal padding offsets its visual box left of its anchor point,
+  -- which a slider doesn't have) so this slider lines up with the others.
+  filterThresholdSlider:SetPoint("TOPLEFT", growthDropdown, "BOTTOMLEFT", 16, -24)
 end
 
 StaticPopupDialogs["ITEMTRACKER_DELETE_BAR"] = {
