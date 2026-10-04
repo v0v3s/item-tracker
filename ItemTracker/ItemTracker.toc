@@ -1,4 +1,5 @@
 ## Interface: 30300
+## X-WoW-Patch: 3.3.5
 ## Title: ItemTracker
 ## Notes: Configurable action-bar-style tracker for bag+bank item counts.
 ## Author: Vojtech Vesely
@@ -9,8 +10,11 @@ Defaults.lua
 Threshold.lua
 ItemInput.lua
 ItemList.lua
+BarCollection.lua
 BarLayout.lua
+ItemCategory.lua
 ItemData.lua
+BagScan.lua
 ElvUISkin.lua
 Bar.lua
 Config.lua

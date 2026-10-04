@@ -12,13 +12,20 @@ eventFrame:RegisterEvent("PLAYERBANKSLOTS_CHANGED")
 
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
   if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
-    ItemTrackerDB = ItemTracker.Logic.MergeDefaults(ItemTrackerDB or {}, ItemTracker.Logic.DEFAULT_DB)
+    ItemTrackerDB = ItemTracker.Logic.MigrateLegacyBar(ItemTrackerDB or {})
+    ItemTrackerDB = ItemTracker.Logic.MergeDefaults(ItemTrackerDB, ItemTracker.Logic.DEFAULT_DB)
+    ItemTracker.Logic.MergeAllBarDefaults(ItemTrackerDB.bars, ItemTracker.Logic.DEFAULT_DB.bars[1])
     self:UnregisterEvent("ADDON_LOADED")
   elseif event == "PLAYER_ENTERING_WORLD" then
-    ItemTracker.Bar.Create()
-    ItemTracker.Bar.Refresh()
-  elseif event == "BAG_UPDATE" or event == "BANKFRAME_OPENED" or event == "BANKFRAME_CLOSED" or event == "PLAYERBANKSLOTS_CHANGED" then
-    ItemTracker.Bar.Refresh()
+    ItemTracker.Bar.RebuildAll()
+  elseif event == "BANKFRAME_OPENED" then
+    ItemTracker.BagScan.SetBankOpen(true)
+    ItemTracker.Bar.RefreshAll()
+  elseif event == "BANKFRAME_CLOSED" then
+    ItemTracker.BagScan.SetBankOpen(false)
+    ItemTracker.Bar.RefreshAll()
+  elseif event == "BAG_UPDATE" or event == "PLAYERBANKSLOTS_CHANGED" then
+    ItemTracker.Bar.RefreshAll()
   end
 end)
 
