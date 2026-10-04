@@ -205,12 +205,19 @@ local function CreateRow(index)
   row.thresholdBox:SetAutoFocus(false)
   row.thresholdBox:SetNumeric(true)
   row.thresholdBox:SetScript("OnEnterPressed", function(self)
+    if ItemTrackerDB.bars[selectedBar].filter then
+      self:ClearFocus()
+      return
+    end
     local threshold = tonumber(self:GetText()) or 1
     ItemTracker.Logic.SetThreshold(ItemTrackerDB.bars[selectedBar].items, row.itemID, threshold)
     self:ClearFocus()
     ItemTracker.Bar.RefreshAll()
   end)
   row.thresholdBox:SetScript("OnEditFocusLost", function(self)
+    if ItemTrackerDB.bars[selectedBar].filter then
+      return
+    end
     local threshold = tonumber(self:GetText()) or 1
     ItemTracker.Logic.SetThreshold(ItemTrackerDB.bars[selectedBar].items, row.itemID, threshold)
     ItemTracker.Bar.RefreshAll()
@@ -299,6 +306,7 @@ local function CreateBarSelector(parent)
   barNameBox:SetAutoFocus(false)
   local function CommitBarName(self)
     ItemTracker.Logic.RenameBar(ItemTrackerDB.bars, selectedBar, self:GetText())
+    ItemTracker.Bar.RefreshAll()
     RefreshBarUI()
   end
   barNameBox:SetScript("OnEnterPressed", function(self)
@@ -540,9 +548,11 @@ local function CreateBarOptions(parent)
   -- Per-row-type visual footprint. Can't rely on frame:GetHeight() alone
   -- for a slider: OptionsSliderTemplate's own frame is only 17px tall --
   -- its label sits 16px ABOVE that frame (a separate FontString, not
-  -- counted in GetHeight()) and its Low/High text sits at the frame's own
-  -- bottom corners (already within the 17px). `topPadding` reserves room
-  -- above the row's anchor point for that kind of external decoration;
+  -- counted in GetHeight()), and its Low/High text hangs BELOW that same
+  -- 17px frame (also not counted). `topPadding` reserves room above the
+  -- row's anchor point for the label; the Low/High overhang below is
+  -- absorbed by LEFT_COLUMN_ROW_GAP instead, not by `height` -- don't
+  -- shrink that gap on the assumption Low/High fits inside the 17px.
   -- `height` is the row's own frame height used to advance past it.
   -- `isDropdown` widgets also need their TOPLEFT shifted 16px left of the
   -- column's true left edge to visually align -- UIDropDownMenuTemplate's

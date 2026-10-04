@@ -3,14 +3,25 @@ ItemTracker.BagScan = ItemTracker.BagScan or {}
 
 local BANK_CONTAINER = -1
 local BANK_BAG_IDS = { 5, 6, 7, 8, 9, 10, 11 }
+local bankOpen = false
+
+-- Tracks whether the bank is open via the BANKFRAME_OPENED/BANKFRAME_CLOSED
+-- events (set by Core.lua), rather than BankFrame:IsShown() -- a
+-- replacement bag/bank UI (ElvUI's bag module, Bagnon, AdiBags, etc.) may
+-- hide or never show Blizzard's own BankFrame widget while still handling
+-- a genuinely open bank, but the underlying game events fire regardless
+-- of which UI (if any) visually responds to them.
+function ItemTracker.BagScan.SetBankOpen(isOpen)
+  bankOpen = isOpen
+end
 
 -- Container IDs to scan: bags 0-4 always, plus the bank's main slots and
--- bank bags while the bank frame is open -- bank contents are only
--- populated client-side while it's open (same limitation
--- ItemData.GetTrackedCount already documents for bank-inclusive counts).
+-- bank bags while the bank is open -- bank contents are only populated
+-- client-side while it's open (same limitation ItemData.GetTrackedCount
+-- already documents for bank-inclusive counts).
 local function GetScanContainers()
   local containers = { 0, 1, 2, 3, 4 }
-  if BankFrame and BankFrame:IsShown() then
+  if bankOpen then
     table.insert(containers, BANK_CONTAINER)
     for _, bagID in ipairs(BANK_BAG_IDS) do
       table.insert(containers, bagID)
