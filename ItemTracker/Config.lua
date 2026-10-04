@@ -518,26 +518,39 @@ local function CreateBarOptions(parent)
   filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", 0, 50, 1,
     function(value) ItemTrackerDB.bars[selectedBar].filterThreshold = value end)
 
-  -- Declared top to bottom. `isDropdown` widgets need their TOPLEFT
-  -- shifted 16px left of the column's true left edge to visually align --
-  -- UIDropDownMenuTemplate's internal padding offsets its clickable box
-  -- that far right of its own anchor point, a quirk plain widgets (
-  -- checkboxes, sliders) don't share.
+  -- Per-row-type visual footprint. Can't rely on frame:GetHeight() alone
+  -- for a slider: OptionsSliderTemplate's own frame is only 17px tall --
+  -- its label sits 16px ABOVE that frame (a separate FontString, not
+  -- counted in GetHeight()) and its Low/High text sits at the frame's own
+  -- bottom corners (already within the 17px). `topPadding` reserves room
+  -- above the row's anchor point for that kind of external decoration;
+  -- `height` is the row's own frame height used to advance past it.
+  -- `isDropdown` widgets also need their TOPLEFT shifted 16px left of the
+  -- column's true left edge to visually align -- UIDropDownMenuTemplate's
+  -- internal padding offsets its clickable box that far right of its own
+  -- anchor point, a quirk plain widgets (checkboxes, sliders) don't share.
+  local ROW_TYPES = {
+    checkbox = { topPadding = 0, height = 22, isDropdown = false },
+    dropdown = { topPadding = 0, height = 32, isDropdown = true },
+    slider = { topPadding = 16, height = 17, isDropdown = false },
+  }
+
+  -- Declared top to bottom.
   leftColumnRows = {
-    { frame = filterTypeDropdown, isDropdown = true, isVisible = function() return true end },
-    { frame = filterSubTypeDropdown, isDropdown = true, isVisible = function(bar) return bar.filter ~= nil end },
-    { frame = lockCheck, isDropdown = false, isVisible = function() return true end },
-    { frame = titleCheck, isDropdown = false, isVisible = function() return true end },
-    { frame = titlePositionDropdown, isDropdown = true, isVisible = function(bar) return bar.showTitle end },
-    { frame = titleOffsetXSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
-    { frame = titleOffsetYSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
-    { frame = titleFontSizeSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
-    { frame = iconSizeSlider, isDropdown = false, isVisible = function() return true end },
-    { frame = columnsSlider, isDropdown = false, isVisible = function() return true end },
-    { frame = maxRowsSlider, isDropdown = false, isVisible = function() return true end },
-    { frame = scaleSlider, isDropdown = false, isVisible = function() return true end },
-    { frame = growthDropdown, isDropdown = true, isVisible = function() return true end },
-    { frame = filterThresholdSlider, isDropdown = false, isVisible = function(bar) return bar.filter ~= nil end },
+    { frame = filterTypeDropdown, rowType = "dropdown", isVisible = function() return true end },
+    { frame = filterSubTypeDropdown, rowType = "dropdown", isVisible = function(bar) return bar.filter ~= nil end },
+    { frame = lockCheck, rowType = "checkbox", isVisible = function() return true end },
+    { frame = titleCheck, rowType = "checkbox", isVisible = function() return true end },
+    { frame = titlePositionDropdown, rowType = "dropdown", isVisible = function(bar) return bar.showTitle end },
+    { frame = titleOffsetXSlider, rowType = "slider", isVisible = function(bar) return bar.showTitle end },
+    { frame = titleOffsetYSlider, rowType = "slider", isVisible = function(bar) return bar.showTitle end },
+    { frame = titleFontSizeSlider, rowType = "slider", isVisible = function(bar) return bar.showTitle end },
+    { frame = iconSizeSlider, rowType = "slider", isVisible = function() return true end },
+    { frame = columnsSlider, rowType = "slider", isVisible = function() return true end },
+    { frame = maxRowsSlider, rowType = "slider", isVisible = function() return true end },
+    { frame = scaleSlider, rowType = "slider", isVisible = function() return true end },
+    { frame = growthDropdown, rowType = "dropdown", isVisible = function() return true end },
+    { frame = filterThresholdSlider, rowType = "slider", isVisible = function(bar) return bar.filter ~= nil end },
   }
 
   local LEFT_COLUMN_ROW_GAP = 10
@@ -553,10 +566,11 @@ local function CreateBarOptions(parent)
     for _, row in ipairs(leftColumnRows) do
       if row.isVisible(bar) then
         row.frame:Show()
-        local x = row.isDropdown and (LEFT_COLUMN_X - 16) or LEFT_COLUMN_X
+        local spec = ROW_TYPES[row.rowType]
+        local x = spec.isDropdown and (LEFT_COLUMN_X - 16) or LEFT_COLUMN_X
         row.frame:ClearAllPoints()
-        row.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", x, cursorY)
-        cursorY = cursorY - row.frame:GetHeight() - LEFT_COLUMN_ROW_GAP
+        row.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", x, cursorY - spec.topPadding)
+        cursorY = cursorY - spec.topPadding - spec.height - LEFT_COLUMN_ROW_GAP
       else
         row.frame:Hide()
       end
