@@ -8,6 +8,21 @@ name: Release
 # pushes, ItemTracker.toc's own `## X-WoW-Patch:` line (not the branch
 # name) is the authoritative source for which patch a release is for, so
 # naming is correct even if a branch is renamed.
+#
+# Versions are semver (MAJOR.MINOR.PATCH), scoped per patch and tagged
+# `<patch>-v<semver>` (e.g. `3.3.5-v1.2.0`) -- each patch tracks its own
+# version history independently. The addon's own .toc `## Version:` line
+# gets just the bare semver (`1.2.0`), since that's a per-codebase concept
+# an addon site reads, not tied to which WoW patch shipped it.
+#
+# The bump (major/minor/patch) is inferred from the branch that was
+# merged in, via the merge commit's own default message (e.g. a PR
+# "Merge pull request #N from owner/feat/main-3.3.5/thing", or a local
+# "Merge branch 'fix/thing'"): a `feat/` branch bumps minor, `fix/` bumps
+# patch, `breaking/` (or a "BREAKING CHANGE" in the message) bumps major.
+# A push with no recognizable branch name in its message (e.g. a direct
+# commit to main-<patch>) falls back to a patch bump -- the smallest,
+# least surprising default.
 on:
   push:
     branches: ['main-*']
@@ -44,14 +59,35 @@ jobs:
         id: version
         env:
           PATCH: ${{ steps.patch.outputs.patch }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           git fetch --tags --quiet
           prefix="${PATCH}-v"
-          last=$(git tag -l "${prefix}[0-9]*" | sed "s/^${prefix}//" | sort -n | tail -1)
-          next=$(( ${last:-0} + 1 ))
+
+          last=$(git tag -l "${prefix}[0-9]*.[0-9]*.[0-9]*" \
+            | sed "s/^${prefix}//" \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -1)
+          last="${last:-0.0.0}"
+          IFS='.' read -r major minor patch <<< "$last"
+
+          if echo "$COMMIT_MESSAGE" | grep -qiE '(^|/)breaking/|BREAKING CHANGE'; then
+            major=$((major + 1)); minor=0; patch=0
+          elif echo "$COMMIT_MESSAGE" | grep -qiE '(^|/)feat/'; then
+            minor=$((minor + 1)); patch=0
+          else
+            patch=$((patch + 1))
+          fi
+
+          semver="${major}.${minor}.${patch}"
+          {
+            echo "semver<<SEMVER_EOF"
+            echo "${semver}"
+            echo "SEMVER_EOF"
+          } >> "$GITHUB_OUTPUT"
           {
             echo "tag<<TAG_EOF"
-            echo "${prefix}${next}"
+            echo "${prefix}${semver}"
             echo "TAG_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -66,6 +102,19 @@ jobs:
             echo "_No changelog entry found for this release._" > release_notes.md
           fi
 
+      # Stamps the computed version into the SHIPPED zip's .toc only --
+      # never committed back to the repo (the working copy on this
+      # ephemeral runner is discarded after the job). Addon sites
+      # (Warperia, CurseForge, etc.) read a .toc's own `## Version:` line
+      # to detect the addon's version; it has nothing to do with the git
+      # tag unless something sets it, so without this every release would
+      # keep shipping whatever static placeholder is checked into source.
+      - name: Stamp this release's version into the addon's own .toc
+        env:
+          SEMVER: ${{ steps.version.outputs.semver }}
+        run: |
+          sed -i "s/^## Version:.*/## Version: ${SEMVER}/" ItemTracker/ItemTracker.toc
+
       - name: Zip addon
         env:
           TAG: ${{ steps.version.outputs.tag }}
@@ -75,6 +124,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          # Without this, a brand-new tag defaults to the repository's
+          # default branch (main) instead of the commit that actually
+          # triggered this run -- harmless once main and main-<patch>
+          # happen to match, but silently wrong whenever they don't
+          # (exactly what happened here: every tag pointed at main's
+          # long-stale HEAD instead of the real build).
+          target_commitish: ${{ github.sha }}
           name: "ItemTracker ${{ steps.version.outputs.tag }}"
           files: ItemTracker-${{ steps.version.outputs.tag }}.zip
           body_path: release_notes.md

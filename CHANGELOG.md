@@ -1,13 +1,15 @@
 # Changelog
 
-All notable changes to ItemTracker are documented here. Versions follow
-`<WoW patch>-v<N>` (e.g. `3.3.5-v2`) — each patch this addon targets
-(3.3.5a today, possibly others later) has its own independent release
-count. The very first release predates that scheme and is just `v1`.
+All notable changes to ItemTracker are documented here. Versions are
+semver (MAJOR.MINOR.PATCH), tagged `<WoW patch>-v<semver>` (e.g.
+`3.3.5-v1.2.0`) — each patch this addon targets (3.3.5a today, possibly
+others later) tracks its own version history independently. The addon's
+own `.toc` shows just the bare semver (e.g. `1.2.0`). The very first
+release predates both schemes and is just `v1`.
 
 ## [Unreleased]
 
-## [3.3.5-v3] - 2026-10-04
+## [3.3.5-v1.2.0] - 2026-10-04
 
 ### Added
 
@@ -29,7 +31,7 @@ count. The very first release predates that scheme and is just `v1`.
 - The "Columns" slider is now labeled "Items per Row" (same setting,
   clearer name).
 
-## [3.3.5-v2] - 2026-10-04
+## [3.3.5-v1.1.0] - 2026-10-04
 
 ### Added
 
