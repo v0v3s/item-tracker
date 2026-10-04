@@ -13,6 +13,7 @@ BarCollection.lua
 BarLayout.lua
 ItemCategory.lua
 ItemData.lua
+BagScan.lua
 ElvUISkin.lua
 Bar.lua
 Config.lua
