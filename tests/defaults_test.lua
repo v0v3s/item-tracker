@@ -57,4 +57,41 @@ ItemTracker.Logic.MergeAllBarDefaults(multiBar, { iconSize = 99, columns = 8 })
 assert(multiBar[1].iconSize == 36, "existing bar 1 value should not be overwritten")
 assert(multiBar[2].iconSize == 99 and multiBar[2].columns == 8, "bar 2 missing keys should be filled from the template too")
 
+-- Category Filters: a fresh bar defaults to manual mode (filter == nil)
+-- with a filterThreshold ready for when a filter is turned on
+local freshFilterCheck = ItemTracker.Logic.MergeDefaults({}, ItemTracker.Logic.DEFAULT_DB)
+assert(freshFilterCheck.bars[1].filterThreshold == 1, "expected default filterThreshold 1")
+assert(freshFilterCheck.bars[1].filter == nil, "a fresh bar should default to manual mode (filter == nil)")
+
+-- MergeAllBarDefaults backfills filterThreshold onto a bar saved before
+-- Category Filters existed, without inventing a filter for it
+local preFilterBar = { { name = "Bar 1", iconSize = 36 } }
+ItemTracker.Logic.MergeAllBarDefaults(preFilterBar, ItemTracker.Logic.DEFAULT_DB.bars[1])
+assert(preFilterBar[1].filterThreshold == 1, "a bar saved before Category Filters existed should be backfilled with filterThreshold 1")
+assert(preFilterBar[1].filter == nil, "backfilling must not invent a filter for a pre-existing manual bar")
+
+-- Bar Title: a fresh bar defaults to the title hidden, with sensible
+-- position/offset/font-size values ready for when it's turned on
+local freshTitleCheck = ItemTracker.Logic.MergeDefaults({}, ItemTracker.Logic.DEFAULT_DB)
+assert(freshTitleCheck.bars[1].showTitle == false, "expected title hidden by default")
+assert(freshTitleCheck.bars[1].titlePosition == "TOP", "expected default titlePosition TOP")
+assert(freshTitleCheck.bars[1].titleOffsetX == 0 and freshTitleCheck.bars[1].titleOffsetY == 0, "expected zero default title offsets")
+assert(freshTitleCheck.bars[1].titleFontSize == 12, "expected default titleFontSize 12")
+
+-- MergeAllBarDefaults backfills the title fields onto a bar saved before
+-- the Bar Title feature existed
+local preTitleBar = { { name = "Bar 1", iconSize = 36 } }
+ItemTracker.Logic.MergeAllBarDefaults(preTitleBar, ItemTracker.Logic.DEFAULT_DB.bars[1])
+assert(preTitleBar[1].showTitle == false, "a bar saved before Bar Title existed should be backfilled with showTitle false")
+assert(preTitleBar[1].titlePosition == "TOP" and preTitleBar[1].titleFontSize == 12, "a bar saved before Bar Title existed should be backfilled with the default position/font size")
+
+-- Max Rows: a fresh bar defaults to 0 (unlimited -- show all items)
+local freshMaxRowsCheck = ItemTracker.Logic.MergeDefaults({}, ItemTracker.Logic.DEFAULT_DB)
+assert(freshMaxRowsCheck.bars[1].maxRows == 0, "expected default maxRows 0 (unlimited)")
+
+-- MergeAllBarDefaults backfills maxRows onto a bar saved before it existed
+local preMaxRowsBar = { { name = "Bar 1", iconSize = 36 } }
+ItemTracker.Logic.MergeAllBarDefaults(preMaxRowsBar, ItemTracker.Logic.DEFAULT_DB.bars[1])
+assert(preMaxRowsBar[1].maxRows == 0, "a bar saved before maxRows existed should be backfilled with 0 (unlimited)")
+
 print("defaults_test: all assertions passed")

@@ -9,6 +9,9 @@ ItemTracker.Logic.DEFAULT_DB = {
       point = "CENTER", relPoint = "CENTER", x = 0, y = 0,
       iconSize = 36, columns = 8, spacing = 4, growth = "RIGHT",
       scale = 1.0, locked = false, showTooltip = true,
+      filterThreshold = 1,
+      showTitle = false, titlePosition = "TOP", titleOffsetX = 0, titleOffsetY = 0, titleFontSize = 12,
+      maxRows = 0,
     },
   },
   config = {

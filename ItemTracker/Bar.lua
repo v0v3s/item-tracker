@@ -78,11 +78,76 @@ local function CreateButton(parentFrame, barIndex, buttonIndex)
   return button
 end
 
+-- Returns the array of { itemID, threshold } this bar should render: its
+-- own manually-curated bar.items when bar.filter is nil (today's
+-- behavior, unchanged), or a freshly-scanned list of every currently
+-- owned item matching bar.filter (each paired with the bar's single
+-- shared bar.filterThreshold) when a filter is active. bar.items is never
+-- read or modified while filtered, so switching back to manual restores
+-- it exactly as it was.
+local function GetDisplayItems(bar)
+  if bar.filter then
+    local displayItems = {}
+    for _, itemID in ipairs(ItemTracker.BagScan.FindMatchingItemIDs(bar.filter)) do
+      table.insert(displayItems, { itemID = itemID, threshold = bar.filterThreshold })
+    end
+    return displayItems
+  end
+  return bar.items
+end
+
+-- Truncates displayItems to at most bar.maxRows * bar.columns entries, or
+-- returns it unchanged when bar.maxRows is 0 ("show all", no cap).
+-- Applies uniformly to manual and filtered bars alike -- a bar's maximum
+-- displayed size is a layout concern, independent of where its items come
+-- from.
+local function CapDisplayItems(displayItems, bar)
+  if not bar.maxRows or bar.maxRows <= 0 then
+    return displayItems
+  end
+  local limit = bar.maxRows * bar.columns
+  if #displayItems <= limit then
+    return displayItems
+  end
+  local capped = {}
+  for i = 1, limit do
+    capped[i] = displayItems[i]
+  end
+  return capped
+end
+
+-- Gap (pixels) between the bar's icon grid and its title, before any
+-- user-set titleOffsetX/titleOffsetY nudge is added on top.
+local TITLE_GAP = 4
+
+-- Anchors entry.title just outside the given side of entry.frame (whose
+-- size already reflects this layout pass's item count), nudged by the
+-- bar's own titleOffsetX/titleOffsetY on top of the preset side -- the
+-- anchor is live, so the title stays correctly placed as the bar's size
+-- changes on a later layout pass without needing to be repositioned here
+-- again.
+local function PositionTitle(entry, bar)
+  local title = entry.title
+  local offsetX = bar.titleOffsetX or 0
+  local offsetY = bar.titleOffsetY or 0
+  title:ClearAllPoints()
+  if bar.titlePosition == "BOTTOM" then
+    title:SetPoint("TOP", entry.frame, "BOTTOM", offsetX, -TITLE_GAP + offsetY)
+  elseif bar.titlePosition == "LEFT" then
+    title:SetPoint("RIGHT", entry.frame, "LEFT", -TITLE_GAP + offsetX, offsetY)
+  elseif bar.titlePosition == "RIGHT" then
+    title:SetPoint("LEFT", entry.frame, "RIGHT", TITLE_GAP + offsetX, offsetY)
+  else -- "TOP" (default)
+    title:SetPoint("BOTTOM", entry.frame, "TOP", offsetX, TITLE_GAP + offsetY)
+  end
+end
+
 local function LayoutBar(barIndex)
   local entry = barFrames[barIndex]
   local bar = ItemTrackerDB.bars[barIndex]
-  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#bar.items, bar.columns, bar.iconSize, bar.spacing, bar.growth)
-  for itemIndex, item in ipairs(bar.items) do
+  local displayItems = CapDisplayItems(GetDisplayItems(bar), bar)
+  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#displayItems, bar.columns, bar.iconSize, bar.spacing, bar.growth)
+  for itemIndex, item in ipairs(displayItems) do
     local button = entry.buttons[itemIndex]
     if not button then
       button = CreateButton(entry.frame, barIndex, itemIndex)
@@ -95,10 +160,20 @@ local function LayoutBar(barIndex)
     ApplyButtonAppearance(button, item.itemID, ItemTracker.ItemData.GetTrackedCount(item.itemID), item.threshold)
     button:Show()
   end
-  for itemIndex = #bar.items + 1, #entry.buttons do
+  for itemIndex = #displayItems + 1, #entry.buttons do
     entry.buttons[itemIndex]:Hide()
   end
-  entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#bar.items, bar))
+  entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#displayItems, bar))
+
+  if bar.showTitle then
+    local fontPath, _, fontFlags = entry.title:GetFont()
+    entry.title:SetFont(fontPath, bar.titleFontSize, fontFlags)
+    entry.title:SetText(bar.name)
+    PositionTitle(entry, bar)
+    entry.title:Show()
+  else
+    entry.title:Hide()
+  end
 end
 
 -- Creates the bar frame for `barIndex` the FIRST time it's needed, and
@@ -112,6 +187,7 @@ local function EnsureBarFrame(barIndex, bar)
   if not entry then
     local frame = CreateFrame("Frame", "ItemTrackerBar" .. barIndex, UIParent)
     entry = { frame = frame, buttons = {} }
+    entry.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     barFrames[barIndex] = entry
   end
   local frame = entry.frame

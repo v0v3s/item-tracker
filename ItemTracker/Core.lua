@@ -18,7 +18,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
     self:UnregisterEvent("ADDON_LOADED")
   elseif event == "PLAYER_ENTERING_WORLD" then
     ItemTracker.Bar.RebuildAll()
-  elseif event == "BAG_UPDATE" or event == "BANKFRAME_OPENED" or event == "BANKFRAME_CLOSED" or event == "PLAYERBANKSLOTS_CHANGED" then
+  elseif event == "BANKFRAME_OPENED" then
+    ItemTracker.BagScan.SetBankOpen(true)
+    ItemTracker.Bar.RefreshAll()
+  elseif event == "BANKFRAME_CLOSED" then
+    ItemTracker.BagScan.SetBankOpen(false)
+    ItemTracker.Bar.RefreshAll()
+  elseif event == "BAG_UPDATE" or event == "PLAYERBANKSLOTS_CHANGED" then
     ItemTracker.Bar.RefreshAll()
   end
 end)
