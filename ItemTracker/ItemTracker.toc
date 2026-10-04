@@ -1,4 +1,5 @@
 ## Interface: 30300
+## X-WoW-Patch: 3.3.5
 ## Title: ItemTracker
 ## Notes: Configurable action-bar-style tracker for bag+bank item counts.
 ## Author: Vojtech Vesely

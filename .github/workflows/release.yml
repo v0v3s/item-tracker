@@ -1,8 +1,14 @@
 name: Release
 
+# Each WoW patch this addon targets gets its own long-lived branch --
+# `main` for the original/current target, `main-<patch>` for every
+# other one added later (e.g. `main-cata`). Whichever branch pushes,
+# ItemTracker.toc's own `## X-WoW-Patch:` line (not the branch name)
+# is the authoritative source for which patch a release is for, so
+# release naming is correct even if a branch is renamed.
 on:
   push:
-    branches: [main]
+    branches: [main, 'main-*']
 
 permissions:
   contents: write
@@ -16,13 +22,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Determine WoW patch target
+        id: patch
+        env:
+          LC_ALL: C.UTF-8
+        run: |
+          patch=$(grep -oP '^## X-WoW-Patch:\s*\K.+' ItemTracker/ItemTracker.toc | tr -d '\r')
+          if [ -z "$patch" ]; then
+            echo "::error::ItemTracker/ItemTracker.toc is missing a '## X-WoW-Patch:' line -- cannot determine release naming."
+            exit 1
+          fi
+          echo "patch=${patch}" >> "$GITHUB_OUTPUT"
+
       - name: Determine next version
         id: version
         run: |
           git fetch --tags --quiet
-          last=$(git tag -l 'v[0-9]*' | sed 's/^v//' | sort -n | tail -1)
+          prefix="${{ steps.patch.outputs.patch }}-v"
+          last=$(git tag -l "${prefix}[0-9]*" | sed "s/^${prefix}//" | sort -n | tail -1)
           next=$(( ${last:-0} + 1 ))
-          echo "tag=v${next}" >> "$GITHUB_OUTPUT"
+          echo "tag=${prefix}${next}" >> "$GITHUB_OUTPUT"
 
       - name: Zip addon
         run: zip -r "ItemTracker-${{ steps.version.outputs.tag }}.zip" ItemTracker
@@ -31,5 +50,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
+          name: "ItemTracker ${{ steps.version.outputs.tag }}"
           files: ItemTracker-${{ steps.version.outputs.tag }}.zip
