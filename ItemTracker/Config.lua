@@ -340,10 +340,26 @@ local function CreateBarOptions(parent)
   -- walks the rows top to bottom and only advances past the ones that are
   -- actually visible, so a hidden row never leaves a gap behind it.
 
+  -- UIDropDownMenuTemplate has no built-in label the way OptionsSliderTemplate
+  -- does, so every dropdown whose selected value doesn't self-explain its
+  -- purpose (growth direction, title position, category filter) gets one of
+  -- these instead. Anchored to the dropdown itself (not a fixed column
+  -- position) so it tracks the dropdown's position automatically whenever
+  -- RelayoutLeftColumn moves it, and stored on the dropdown as `.label` so
+  -- RelayoutLeftColumn can show/hide it alongside the dropdown.
+  local function CreateDropdownLabel(dropdown, text)
+    local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("BOTTOMLEFT", dropdown, "TOPLEFT", 16, 2)
+    label:SetText(text)
+    dropdown.label = label
+    return label
+  end
+
   -- Category Filter comes first: it's the one control that decides
   -- whether the rest of the window's manual item list is even usable.
   filterTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterTypeDropdown", parent, "UIDropDownMenuTemplate")
   UIDropDownMenu_SetWidth(filterTypeDropdown, 190)
+  CreateDropdownLabel(filterTypeDropdown, "Category Filter")
   UIDropDownMenu_Initialize(filterTypeDropdown, function(self, level)
     local noneOption = UIDropDownMenu_CreateInfo()
     noneOption.text = "None (manual)"
@@ -370,6 +386,7 @@ local function CreateBarOptions(parent)
 
   filterSubTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterSubTypeDropdown", parent, "UIDropDownMenuTemplate")
   UIDropDownMenu_SetWidth(filterSubTypeDropdown, 190)
+  CreateDropdownLabel(filterSubTypeDropdown, "Subcategory")
   UIDropDownMenu_Initialize(filterSubTypeDropdown, function(self, level)
     local bar = ItemTrackerDB.bars[selectedBar]
     if not bar.filter then
@@ -417,6 +434,7 @@ local function CreateBarOptions(parent)
 
   titlePositionDropdown = CreateFrame("Frame", "ItemTrackerConfigTitlePositionDropdown", parent, "UIDropDownMenuTemplate")
   UIDropDownMenu_SetWidth(titlePositionDropdown, 150)
+  CreateDropdownLabel(titlePositionDropdown, "Title Position")
   UIDropDownMenu_Initialize(titlePositionDropdown, function(self, level)
     for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
       local option = UIDropDownMenu_CreateInfo()
@@ -500,6 +518,7 @@ local function CreateBarOptions(parent)
 
   growthDropdown = CreateFrame("Frame", "ItemTrackerConfigGrowthDropdown", parent, "UIDropDownMenuTemplate")
   UIDropDownMenu_SetWidth(growthDropdown, 150)
+  CreateDropdownLabel(growthDropdown, "Growth Direction")
   UIDropDownMenu_Initialize(growthDropdown, function(self, level)
     for _, direction in ipairs({ "RIGHT", "LEFT", "DOWN", "UP" }) do
       local option = UIDropDownMenu_CreateInfo()
@@ -531,7 +550,7 @@ local function CreateBarOptions(parent)
   -- anchor point, a quirk plain widgets (checkboxes, sliders) don't share.
   local ROW_TYPES = {
     checkbox = { topPadding = 0, height = 22, isDropdown = false },
-    dropdown = { topPadding = 0, height = 32, isDropdown = true },
+    dropdown = { topPadding = 16, height = 32, isDropdown = true },
     slider = { topPadding = 16, height = 17, isDropdown = false },
   }
 
@@ -564,13 +583,17 @@ local function CreateBarOptions(parent)
     local bar = ItemTrackerDB.bars[selectedBar]
     local cursorY = CONTENT_TOP_Y
     for _, row in ipairs(leftColumnRows) do
-      -- A slider's valueBox is a sibling widget positioned via SetPoint,
-      -- not a child frame -- hiding/showing the slider itself does not
-      -- propagate to it, so it must be toggled explicitly here too.
+      -- A slider's valueBox and a dropdown's label are both sibling
+      -- widgets positioned via SetPoint, not child frames -- hiding/
+      -- showing the row's own frame does not propagate to them, so they
+      -- must be toggled explicitly here too.
       if row.isVisible(bar) then
         row.frame:Show()
         if row.frame.valueBox then
           row.frame.valueBox:Show()
+        end
+        if row.frame.label then
+          row.frame.label:Show()
         end
         local spec = ROW_TYPES[row.rowType]
         local x = spec.isDropdown and (LEFT_COLUMN_X - 16) or LEFT_COLUMN_X
@@ -581,6 +604,9 @@ local function CreateBarOptions(parent)
         row.frame:Hide()
         if row.frame.valueBox then
           row.frame.valueBox:Hide()
+        end
+        if row.frame.label then
+          row.frame.label:Hide()
         end
       end
     end
