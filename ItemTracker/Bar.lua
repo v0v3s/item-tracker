@@ -78,11 +78,30 @@ local function CreateButton(parentFrame, barIndex, buttonIndex)
   return button
 end
 
+-- Returns the array of { itemID, threshold } this bar should render: its
+-- own manually-curated bar.items when bar.filter is nil (today's
+-- behavior, unchanged), or a freshly-scanned list of every currently
+-- owned item matching bar.filter (each paired with the bar's single
+-- shared bar.filterThreshold) when a filter is active. bar.items is never
+-- read or modified while filtered, so switching back to manual restores
+-- it exactly as it was.
+local function GetDisplayItems(bar)
+  if bar.filter then
+    local displayItems = {}
+    for _, itemID in ipairs(ItemTracker.BagScan.FindMatchingItemIDs(bar.filter)) do
+      table.insert(displayItems, { itemID = itemID, threshold = bar.filterThreshold })
+    end
+    return displayItems
+  end
+  return bar.items
+end
+
 local function LayoutBar(barIndex)
   local entry = barFrames[barIndex]
   local bar = ItemTrackerDB.bars[barIndex]
-  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#bar.items, bar.columns, bar.iconSize, bar.spacing, bar.growth)
-  for itemIndex, item in ipairs(bar.items) do
+  local displayItems = GetDisplayItems(bar)
+  local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#displayItems, bar.columns, bar.iconSize, bar.spacing, bar.growth)
+  for itemIndex, item in ipairs(displayItems) do
     local button = entry.buttons[itemIndex]
     if not button then
       button = CreateButton(entry.frame, barIndex, itemIndex)
@@ -95,10 +114,10 @@ local function LayoutBar(barIndex)
     ApplyButtonAppearance(button, item.itemID, ItemTracker.ItemData.GetTrackedCount(item.itemID), item.threshold)
     button:Show()
   end
-  for itemIndex = #bar.items + 1, #entry.buttons do
+  for itemIndex = #displayItems + 1, #entry.buttons do
     entry.buttons[itemIndex]:Hide()
   end
-  entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#bar.items, bar))
+  entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#displayItems, bar))
 end
 
 -- Creates the bar frame for `barIndex` the FIRST time it's needed, and
