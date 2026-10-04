@@ -7,6 +7,8 @@ count. The very first release predates that scheme and is just `v1`.
 
 ## [Unreleased]
 
+## [3.3.5-v3] - 2026-10-04
+
 ### Added
 
 - **Category filters** — a bar can auto-populate from the game's own item
