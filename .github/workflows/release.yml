@@ -27,24 +27,36 @@ jobs:
         env:
           LC_ALL: C.UTF-8
         run: |
-          patch=$(grep -oP '^## X-WoW-Patch:\s*\K.+' ItemTracker/ItemTracker.toc | tr -d '\r')
+          patch=$(grep -oP '^## X-WoW-Patch:\s*\K.+' ItemTracker/ItemTracker.toc | tr -d '\r\n')
           if [ -z "$patch" ]; then
             echo "::error::ItemTracker/ItemTracker.toc is missing a '## X-WoW-Patch:' line -- cannot determine release naming."
             exit 1
           fi
-          echo "patch=${patch}" >> "$GITHUB_OUTPUT"
+          {
+            echo "patch<<PATCH_EOF"
+            echo "$patch"
+            echo "PATCH_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Determine next version
         id: version
+        env:
+          PATCH: ${{ steps.patch.outputs.patch }}
         run: |
           git fetch --tags --quiet
-          prefix="${{ steps.patch.outputs.patch }}-v"
+          prefix="${PATCH}-v"
           last=$(git tag -l "${prefix}[0-9]*" | sed "s/^${prefix}//" | sort -n | tail -1)
           next=$(( ${last:-0} + 1 ))
-          echo "tag=${prefix}${next}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag<<TAG_EOF"
+            echo "${prefix}${next}"
+            echo "TAG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Zip addon
-        run: zip -r "ItemTracker-${{ steps.version.outputs.tag }}.zip" ItemTracker
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: zip -r "ItemTracker-${TAG}.zip" ItemTracker
 
       - name: Create release
         uses: softprops/action-gh-release@v2
