@@ -96,6 +96,26 @@ local function GetDisplayItems(bar)
   return bar.items
 end
 
+-- Truncates displayItems to at most bar.maxRows * bar.columns entries, or
+-- returns it unchanged when bar.maxRows is 0 ("show all", no cap).
+-- Applies uniformly to manual and filtered bars alike -- a bar's maximum
+-- displayed size is a layout concern, independent of where its items come
+-- from.
+local function CapDisplayItems(displayItems, bar)
+  if not bar.maxRows or bar.maxRows <= 0 then
+    return displayItems
+  end
+  local limit = bar.maxRows * bar.columns
+  if #displayItems <= limit then
+    return displayItems
+  end
+  local capped = {}
+  for i = 1, limit do
+    capped[i] = displayItems[i]
+  end
+  return capped
+end
+
 -- Gap (pixels) between the bar's icon grid and its title, before any
 -- user-set titleOffsetX/titleOffsetY nudge is added on top.
 local TITLE_GAP = 4
@@ -125,7 +145,7 @@ end
 local function LayoutBar(barIndex)
   local entry = barFrames[barIndex]
   local bar = ItemTrackerDB.bars[barIndex]
-  local displayItems = GetDisplayItems(bar)
+  local displayItems = CapDisplayItems(GetDisplayItems(bar), bar)
   local originX, originY = ItemTracker.Logic.ComputeGridOrigin(#displayItems, bar.columns, bar.iconSize, bar.spacing, bar.growth)
   for itemIndex, item in ipairs(displayItems) do
     local button = entry.buttons[itemIndex]

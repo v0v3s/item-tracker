@@ -26,13 +26,12 @@ local deleteBarButton
 local lockCheck
 local titleCheck
 local titlePositionDropdown
-local titleOffsetLabel
-local titleOffsetXBox
-local titleOffsetYLabel
-local titleOffsetYBox
+local titleOffsetXSlider
+local titleOffsetYSlider
 local titleFontSizeSlider
 local iconSizeSlider
 local columnsSlider
+local maxRowsSlider
 local scaleSlider
 local growthDropdown
 local instructions
@@ -42,6 +41,16 @@ local filterTypeDropdown
 local filterSubTypeDropdown
 local filterThresholdSlider
 
+-- The left (parameters) column's rows, top to bottom, populated by
+-- CreateBarOptions once every widget exists. Declared here (not just
+-- inside CreateBarOptions) so RelayoutLeftColumn -- assigned by
+-- CreateBarOptions too, same forward-declared-upvalue pattern used
+-- throughout this file for every widget local -- can read it from
+-- RefreshBarOptions and the Show Title checkbox, both defined earlier in
+-- this file than CreateBarOptions runs.
+local leftColumnRows
+local RelayoutLeftColumn
+
 local function FormatSliderValue(value, step)
   if step >= 1 then
     return tostring(math.floor(value + 0.5))
@@ -49,11 +58,13 @@ local function FormatSliderValue(value, step)
   return string.format("%.2f", value)
 end
 
--- Toggles the config window's add-row and category-filter-only controls.
--- The item list itself (scrollFrame/rows) is always shown -- see
--- RefreshList -- only the manual add-item controls (not applicable to a
--- live-scanned list) and the filter-only controls (readout, shared
--- threshold) toggle here. Never mixed -- see the plan's Global Constraints.
+-- Toggles the config window's add-row vs. category-filter-only controls
+-- in the ITEMS (right) column. The item list itself (scrollFrame/rows) is
+-- always shown -- see RefreshList. The PARAMETERS (left) column's own
+-- conditional rows (filter subtype, title options, low-stock threshold)
+-- are handled by RelayoutLeftColumn instead, since hiding one of those
+-- must also close the gap it would otherwise leave behind. Never mixed --
+-- see the plan's Global Constraints.
 local function SetManualUIShown(shown)
   if shown then
     instructions:Show()
@@ -61,40 +72,12 @@ local function SetManualUIShown(shown)
     dragSlot:Show()
     addError:Show()
     filterStatus:Hide()
-    filterSubTypeDropdown:Hide()
-    filterThresholdSlider:Hide()
-    filterThresholdSlider.valueBox:Hide()
   else
     instructions:Hide()
     addEditBox:Hide()
     dragSlot:Hide()
     addError:Hide()
     filterStatus:Show()
-    filterSubTypeDropdown:Show()
-    filterThresholdSlider:Show()
-    filterThresholdSlider.valueBox:Show()
-  end
-end
-
--- Toggles the title position/offset/font-size controls -- only meaningful
--- once "Show Title" is checked.
-local function SetTitleOptionsShown(shown)
-  if shown then
-    titlePositionDropdown:Show()
-    titleOffsetLabel:Show()
-    titleOffsetXBox:Show()
-    titleOffsetYLabel:Show()
-    titleOffsetYBox:Show()
-    titleFontSizeSlider:Show()
-    titleFontSizeSlider.valueBox:Show()
-  else
-    titlePositionDropdown:Hide()
-    titleOffsetLabel:Hide()
-    titleOffsetXBox:Hide()
-    titleOffsetYLabel:Hide()
-    titleOffsetYBox:Hide()
-    titleFontSizeSlider:Hide()
-    titleFontSizeSlider.valueBox:Hide()
   end
 end
 
@@ -150,12 +133,13 @@ local function RefreshBarOptions()
   lockCheck:SetChecked(bar.locked)
 
   titleCheck:SetChecked(bar.showTitle)
-  SetTitleOptionsShown(bar.showTitle)
   if bar.showTitle then
     UIDropDownMenu_SetSelectedValue(titlePositionDropdown, bar.titlePosition)
     UIDropDownMenu_SetText(titlePositionDropdown, bar.titlePosition)
-    titleOffsetXBox:SetText(tostring(bar.titleOffsetX))
-    titleOffsetYBox:SetText(tostring(bar.titleOffsetY))
+    titleOffsetXSlider:SetValue(bar.titleOffsetX)
+    titleOffsetXSlider.valueBox:SetText(FormatSliderValue(bar.titleOffsetX, 1))
+    titleOffsetYSlider:SetValue(bar.titleOffsetY)
+    titleOffsetYSlider.valueBox:SetText(FormatSliderValue(bar.titleOffsetY, 1))
     titleFontSizeSlider:SetValue(bar.titleFontSize)
     titleFontSizeSlider.valueBox:SetText(FormatSliderValue(bar.titleFontSize, 1))
   end
@@ -164,6 +148,8 @@ local function RefreshBarOptions()
   iconSizeSlider.valueBox:SetText(FormatSliderValue(bar.iconSize, 1))
   columnsSlider:SetValue(bar.columns)
   columnsSlider.valueBox:SetText(FormatSliderValue(bar.columns, 1))
+  maxRowsSlider:SetValue(bar.maxRows)
+  maxRowsSlider.valueBox:SetText(FormatSliderValue(bar.maxRows, 1))
   scaleSlider:SetValue(bar.scale)
   scaleSlider.valueBox:SetText(FormatSliderValue(bar.scale, 0.05))
   UIDropDownMenu_SetSelectedValue(growthDropdown, bar.growth)
@@ -180,6 +166,8 @@ local function RefreshBarOptions()
     UIDropDownMenu_SetSelectedValue(filterTypeDropdown, nil)
     UIDropDownMenu_SetText(filterTypeDropdown, "None (manual)")
   end
+
+  RelayoutLeftColumn()
 end
 
 local function RefreshBarUI()
@@ -346,10 +334,15 @@ local function CreateBarSelector(parent)
 end
 
 local function CreateBarOptions(parent)
+  -- None of these widgets set their own position at creation time anymore
+  -- -- every left-column row's TOPLEFT is computed by RelayoutLeftColumn
+  -- (defined at the end of this function, once every row exists), which
+  -- walks the rows top to bottom and only advances past the ones that are
+  -- actually visible, so a hidden row never leaves a gap behind it.
+
   -- Category Filter comes first: it's the one control that decides
   -- whether the rest of the window's manual item list is even usable.
   filterTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterTypeDropdown", parent, "UIDropDownMenuTemplate")
-  filterTypeDropdown:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_COLUMN_X - 16, CONTENT_TOP_Y)
   UIDropDownMenu_SetWidth(filterTypeDropdown, 190)
   UIDropDownMenu_Initialize(filterTypeDropdown, function(self, level)
     local noneOption = UIDropDownMenu_CreateInfo()
@@ -376,7 +369,6 @@ local function CreateBarOptions(parent)
   end)
 
   filterSubTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterSubTypeDropdown", parent, "UIDropDownMenuTemplate")
-  filterSubTypeDropdown:SetPoint("TOPLEFT", filterTypeDropdown, "BOTTOMLEFT", 0, -8)
   UIDropDownMenu_SetWidth(filterSubTypeDropdown, 190)
   UIDropDownMenu_Initialize(filterSubTypeDropdown, function(self, level)
     local bar = ItemTrackerDB.bars[selectedBar]
@@ -410,24 +402,20 @@ local function CreateBarOptions(parent)
   end)
 
   lockCheck = CreateFrame("CheckButton", "ItemTrackerConfigLockCheck", parent, "UICheckButtonTemplate")
-  lockCheck:SetPoint("TOPLEFT", filterSubTypeDropdown, "BOTTOMLEFT", 16, -16)
   _G[lockCheck:GetName() .. "Text"]:SetText("Lock bar")
   lockCheck:SetScript("OnClick", function(self)
     ItemTracker.Bar.SetLocked(selectedBar, self:GetChecked() and true or false)
   end)
 
   titleCheck = CreateFrame("CheckButton", "ItemTrackerConfigTitleCheck", parent, "UICheckButtonTemplate")
-  titleCheck:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 0, -8)
   _G[titleCheck:GetName() .. "Text"]:SetText("Show Title")
   titleCheck:SetScript("OnClick", function(self)
-    local bar = ItemTrackerDB.bars[selectedBar]
-    bar.showTitle = self:GetChecked() and true or false
-    SetTitleOptionsShown(bar.showTitle)
+    ItemTrackerDB.bars[selectedBar].showTitle = self:GetChecked() and true or false
     ItemTracker.Bar.RefreshAll()
+    RefreshBarOptions()
   end)
 
   titlePositionDropdown = CreateFrame("Frame", "ItemTrackerConfigTitlePositionDropdown", parent, "UIDropDownMenuTemplate")
-  titlePositionDropdown:SetPoint("TOPLEFT", titleCheck, "BOTTOMLEFT", -16, -8)
   UIDropDownMenu_SetWidth(titlePositionDropdown, 150)
   UIDropDownMenu_Initialize(titlePositionDropdown, function(self, level)
     for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
@@ -444,40 +432,8 @@ local function CreateBarOptions(parent)
     end
   end)
 
-  local function CommitOffsetBox(box, key)
-    local value = tonumber(box:GetText()) or 0
-    value = math.max(-200, math.min(200, value))
-    ItemTrackerDB.bars[selectedBar][key] = value
-    box:SetText(tostring(value))
-    box:ClearFocus()
-    ItemTracker.Bar.RefreshAll()
-  end
-
-  titleOffsetLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  titleOffsetLabel:SetPoint("TOPLEFT", titlePositionDropdown, "BOTTOMLEFT", 16, -12)
-  titleOffsetLabel:SetText("Offset X")
-
-  titleOffsetXBox = CreateFrame("EditBox", "ItemTrackerConfigTitleOffsetX", parent, "InputBoxTemplate")
-  titleOffsetXBox:SetSize(40, 20)
-  titleOffsetXBox:SetAutoFocus(false)
-  titleOffsetXBox:SetPoint("LEFT", titleOffsetLabel, "RIGHT", 6, 0)
-  titleOffsetXBox:SetScript("OnEnterPressed", function(self) CommitOffsetBox(self, "titleOffsetX") end)
-  titleOffsetXBox:SetScript("OnEditFocusLost", function(self) CommitOffsetBox(self, "titleOffsetX") end)
-
-  titleOffsetYLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  titleOffsetYLabel:SetPoint("LEFT", titleOffsetXBox, "RIGHT", 10, 0)
-  titleOffsetYLabel:SetText("Y")
-
-  titleOffsetYBox = CreateFrame("EditBox", "ItemTrackerConfigTitleOffsetY", parent, "InputBoxTemplate")
-  titleOffsetYBox:SetSize(40, 20)
-  titleOffsetYBox:SetAutoFocus(false)
-  titleOffsetYBox:SetPoint("LEFT", titleOffsetYLabel, "RIGHT", 6, 0)
-  titleOffsetYBox:SetScript("OnEnterPressed", function(self) CommitOffsetBox(self, "titleOffsetY") end)
-  titleOffsetYBox:SetScript("OnEditFocusLost", function(self) CommitOffsetBox(self, "titleOffsetY") end)
-
-  local function CreateSlider(name, label, anchor, minVal, maxVal, step, setter)
+  local function CreateSlider(name, label, minVal, maxVal, step, setter)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
-    slider:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -24)
     slider:SetMinMaxValues(minVal, maxVal)
     slider:SetValueStep(step)
     slider:SetWidth(160)
@@ -516,20 +472,33 @@ local function CreateBarOptions(parent)
     return slider
   end
 
-  titleFontSizeSlider = CreateSlider("ItemTrackerConfigTitleFontSize", "Title Font Size", titleOffsetLabel, 8, 24, 1,
+  -- Title offsets are sliders too (draggable, with a type-in value box),
+  -- same as every other numeric bar setting -- they nudge the title on
+  -- top of whichever preset side titlePositionDropdown picks.
+  titleOffsetXSlider = CreateSlider("ItemTrackerConfigTitleOffsetX", "Title Offset X", -100, 100, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].titleOffsetX = value end)
+
+  titleOffsetYSlider = CreateSlider("ItemTrackerConfigTitleOffsetY", "Title Offset Y", -100, 100, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].titleOffsetY = value end)
+
+  titleFontSizeSlider = CreateSlider("ItemTrackerConfigTitleFontSize", "Title Font Size", 8, 24, 1,
     function(value) ItemTrackerDB.bars[selectedBar].titleFontSize = value end)
 
-  iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", titleFontSizeSlider, 16, 64, 1,
+  iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", 16, 64, 1,
     function(value) ItemTrackerDB.bars[selectedBar].iconSize = value end)
 
-  columnsSlider = CreateSlider("ItemTrackerConfigColumns", "Columns", iconSizeSlider, 1, 20, 1,
+  -- Same field as always (bar.columns) -- just labeled for what it does.
+  columnsSlider = CreateSlider("ItemTrackerConfigColumns", "Items per Row", 1, 20, 1,
     function(value) ItemTrackerDB.bars[selectedBar].columns = value end)
 
-  scaleSlider = CreateSlider("ItemTrackerConfigScale", "Scale", columnsSlider, 0.5, 2, 0.05,
+  -- 0 means unlimited (show every item, however many rows that takes).
+  maxRowsSlider = CreateSlider("ItemTrackerConfigMaxRows", "Maximum Rows (0 = All)", 0, 20, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].maxRows = value end)
+
+  scaleSlider = CreateSlider("ItemTrackerConfigScale", "Scale", 0.5, 2, 0.05,
     function(value) ItemTrackerDB.bars[selectedBar].scale = value end)
 
   growthDropdown = CreateFrame("Frame", "ItemTrackerConfigGrowthDropdown", parent, "UIDropDownMenuTemplate")
-  growthDropdown:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", -16, -24)
   UIDropDownMenu_SetWidth(growthDropdown, 150)
   UIDropDownMenu_Initialize(growthDropdown, function(self, level)
     for _, direction in ipairs({ "RIGHT", "LEFT", "DOWN", "UP" }) do
@@ -546,13 +515,53 @@ local function CreateBarOptions(parent)
     end
   end)
 
-  filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", growthDropdown, 0, 50, 1,
+  filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", 0, 50, 1,
     function(value) ItemTrackerDB.bars[selectedBar].filterThreshold = value end)
-  -- CreateSlider anchors flush with its anchor's own x -- correct for
-  -- growthDropdown's own -16 compensation (UIDropDownMenuTemplate's
-  -- internal padding offsets its visual box left of its anchor point,
-  -- which a slider doesn't have) so this slider lines up with the others.
-  filterThresholdSlider:SetPoint("TOPLEFT", growthDropdown, "BOTTOMLEFT", 16, -24)
+
+  -- Declared top to bottom. `isDropdown` widgets need their TOPLEFT
+  -- shifted 16px left of the column's true left edge to visually align --
+  -- UIDropDownMenuTemplate's internal padding offsets its clickable box
+  -- that far right of its own anchor point, a quirk plain widgets (
+  -- checkboxes, sliders) don't share.
+  leftColumnRows = {
+    { frame = filterTypeDropdown, isDropdown = true, isVisible = function() return true end },
+    { frame = filterSubTypeDropdown, isDropdown = true, isVisible = function(bar) return bar.filter ~= nil end },
+    { frame = lockCheck, isDropdown = false, isVisible = function() return true end },
+    { frame = titleCheck, isDropdown = false, isVisible = function() return true end },
+    { frame = titlePositionDropdown, isDropdown = true, isVisible = function(bar) return bar.showTitle end },
+    { frame = titleOffsetXSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
+    { frame = titleOffsetYSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
+    { frame = titleFontSizeSlider, isDropdown = false, isVisible = function(bar) return bar.showTitle end },
+    { frame = iconSizeSlider, isDropdown = false, isVisible = function() return true end },
+    { frame = columnsSlider, isDropdown = false, isVisible = function() return true end },
+    { frame = maxRowsSlider, isDropdown = false, isVisible = function() return true end },
+    { frame = scaleSlider, isDropdown = false, isVisible = function() return true end },
+    { frame = growthDropdown, isDropdown = true, isVisible = function() return true end },
+    { frame = filterThresholdSlider, isDropdown = false, isVisible = function(bar) return bar.filter ~= nil end },
+  }
+
+  local LEFT_COLUMN_ROW_GAP = 10
+
+  -- Repositions (and shows/hides) every left-column row from scratch,
+  -- top to bottom, so a row that isn't currently visible is skipped
+  -- entirely rather than leaving the gap its reserved space would
+  -- otherwise leave behind. Safe to call anytime a row's visibility or
+  -- the set of rows above it may have changed.
+  RelayoutLeftColumn = function()
+    local bar = ItemTrackerDB.bars[selectedBar]
+    local cursorY = CONTENT_TOP_Y
+    for _, row in ipairs(leftColumnRows) do
+      if row.isVisible(bar) then
+        row.frame:Show()
+        local x = row.isDropdown and (LEFT_COLUMN_X - 16) or LEFT_COLUMN_X
+        row.frame:ClearAllPoints()
+        row.frame:SetPoint("TOPLEFT", parent, "TOPLEFT", x, cursorY)
+        cursorY = cursorY - row.frame:GetHeight() - LEFT_COLUMN_ROW_GAP
+      else
+        row.frame:Hide()
+      end
+    end
+  end
 end
 
 StaticPopupDialogs["ITEMTRACKER_DELETE_BAR"] = {
@@ -588,7 +597,7 @@ function ItemTracker.Config.Create()
   end
 
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(600, 700)
+  frame:SetSize(600, 780)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -715,8 +724,8 @@ function ItemTracker.Config.Create()
     buttons = { newBarButton, deleteBarButton },
     closeButtons = { closeButton, unpack(removeButtons) },
     checkboxes = { lockCheck, titleCheck },
-    editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox, filterThresholdSlider.valueBox, titleFontSizeSlider.valueBox, titleOffsetXBox, titleOffsetYBox, unpack(thresholdBoxes) },
-    sliders = { iconSizeSlider, columnsSlider, scaleSlider, filterThresholdSlider, titleFontSizeSlider },
+    editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, maxRowsSlider.valueBox, scaleSlider.valueBox, filterThresholdSlider.valueBox, titleFontSizeSlider.valueBox, titleOffsetXSlider.valueBox, titleOffsetYSlider.valueBox, unpack(thresholdBoxes) },
+    sliders = { iconSizeSlider, columnsSlider, maxRowsSlider, scaleSlider, filterThresholdSlider, titleFontSizeSlider, titleOffsetXSlider, titleOffsetYSlider },
     dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 150 }, { frame = filterTypeDropdown, width = 190 }, { frame = filterSubTypeDropdown, width = 190 }, { frame = titlePositionDropdown, width = 150 } },
     plainFrames = { dragSlot },
   })
