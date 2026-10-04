@@ -66,6 +66,19 @@ jobs:
             echo "_No changelog entry found for this release._" > release_notes.md
           fi
 
+      # Stamps the computed version into the SHIPPED zip's .toc only --
+      # never committed back to the repo (the working copy on this
+      # ephemeral runner is discarded after the job). Addon sites
+      # (Warperia, CurseForge, etc.) read a .toc's own `## Version:` line
+      # to detect the addon's version; it has nothing to do with the git
+      # tag unless something sets it, so without this every release would
+      # keep shipping whatever static placeholder is checked into source.
+      - name: Stamp this release's version into the addon's own .toc
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          sed -i "s/^## Version:.*/## Version: ${TAG}/" ItemTracker/ItemTracker.toc
+
       - name: Zip addon
         env:
           TAG: ${{ steps.version.outputs.tag }}
