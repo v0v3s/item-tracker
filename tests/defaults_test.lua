@@ -57,4 +57,17 @@ ItemTracker.Logic.MergeAllBarDefaults(multiBar, { iconSize = 99, columns = 8 })
 assert(multiBar[1].iconSize == 36, "existing bar 1 value should not be overwritten")
 assert(multiBar[2].iconSize == 99 and multiBar[2].columns == 8, "bar 2 missing keys should be filled from the template too")
 
+-- Category Filters: a fresh bar defaults to manual mode (filter == nil)
+-- with a filterThreshold ready for when a filter is turned on
+local freshFilterCheck = ItemTracker.Logic.MergeDefaults({}, ItemTracker.Logic.DEFAULT_DB)
+assert(freshFilterCheck.bars[1].filterThreshold == 1, "expected default filterThreshold 1")
+assert(freshFilterCheck.bars[1].filter == nil, "a fresh bar should default to manual mode (filter == nil)")
+
+-- MergeAllBarDefaults backfills filterThreshold onto a bar saved before
+-- Category Filters existed, without inventing a filter for it
+local preFilterBar = { { name = "Bar 1", iconSize = 36 } }
+ItemTracker.Logic.MergeAllBarDefaults(preFilterBar, ItemTracker.Logic.DEFAULT_DB.bars[1])
+assert(preFilterBar[1].filterThreshold == 1, "a bar saved before Category Filters existed should be backfilled with filterThreshold 1")
+assert(preFilterBar[1].filter == nil, "backfilling must not invent a filter for a pre-existing manual bar")
+
 print("defaults_test: all assertions passed")
