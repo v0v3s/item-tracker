@@ -10,6 +10,7 @@ ItemTracker.Logic.DEFAULT_DB = {
       iconSize = 36, columns = 8, spacing = 4, growth = "RIGHT",
       scale = 1.0, locked = false, showTooltip = true,
       filterThreshold = 1,
+      showTitle = false, titlePosition = "TOP", titleOffsetX = 0, titleOffsetY = 0, titleFontSize = 12,
     },
   },
   config = {

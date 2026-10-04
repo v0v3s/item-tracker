@@ -24,6 +24,13 @@ local barNameBox
 local newBarButton
 local deleteBarButton
 local lockCheck
+local titleCheck
+local titlePositionDropdown
+local titleOffsetLabel
+local titleOffsetXBox
+local titleOffsetYLabel
+local titleOffsetYBox
+local titleFontSizeSlider
 local iconSizeSlider
 local columnsSlider
 local scaleSlider
@@ -66,6 +73,28 @@ local function SetManualUIShown(shown)
     filterSubTypeDropdown:Show()
     filterThresholdSlider:Show()
     filterThresholdSlider.valueBox:Show()
+  end
+end
+
+-- Toggles the title position/offset/font-size controls -- only meaningful
+-- once "Show Title" is checked.
+local function SetTitleOptionsShown(shown)
+  if shown then
+    titlePositionDropdown:Show()
+    titleOffsetLabel:Show()
+    titleOffsetXBox:Show()
+    titleOffsetYLabel:Show()
+    titleOffsetYBox:Show()
+    titleFontSizeSlider:Show()
+    titleFontSizeSlider.valueBox:Show()
+  else
+    titlePositionDropdown:Hide()
+    titleOffsetLabel:Hide()
+    titleOffsetXBox:Hide()
+    titleOffsetYLabel:Hide()
+    titleOffsetYBox:Hide()
+    titleFontSizeSlider:Hide()
+    titleFontSizeSlider.valueBox:Hide()
   end
 end
 
@@ -119,6 +148,18 @@ end
 local function RefreshBarOptions()
   local bar = ItemTrackerDB.bars[selectedBar]
   lockCheck:SetChecked(bar.locked)
+
+  titleCheck:SetChecked(bar.showTitle)
+  SetTitleOptionsShown(bar.showTitle)
+  if bar.showTitle then
+    UIDropDownMenu_SetSelectedValue(titlePositionDropdown, bar.titlePosition)
+    UIDropDownMenu_SetText(titlePositionDropdown, bar.titlePosition)
+    titleOffsetXBox:SetText(tostring(bar.titleOffsetX))
+    titleOffsetYBox:SetText(tostring(bar.titleOffsetY))
+    titleFontSizeSlider:SetValue(bar.titleFontSize)
+    titleFontSizeSlider.valueBox:SetText(FormatSliderValue(bar.titleFontSize, 1))
+  end
+
   iconSizeSlider:SetValue(bar.iconSize)
   iconSizeSlider.valueBox:SetText(FormatSliderValue(bar.iconSize, 1))
   columnsSlider:SetValue(bar.columns)
@@ -375,6 +416,65 @@ local function CreateBarOptions(parent)
     ItemTracker.Bar.SetLocked(selectedBar, self:GetChecked() and true or false)
   end)
 
+  titleCheck = CreateFrame("CheckButton", "ItemTrackerConfigTitleCheck", parent, "UICheckButtonTemplate")
+  titleCheck:SetPoint("TOPLEFT", lockCheck, "BOTTOMLEFT", 0, -8)
+  _G[titleCheck:GetName() .. "Text"]:SetText("Show Title")
+  titleCheck:SetScript("OnClick", function(self)
+    local bar = ItemTrackerDB.bars[selectedBar]
+    bar.showTitle = self:GetChecked() and true or false
+    SetTitleOptionsShown(bar.showTitle)
+    ItemTracker.Bar.RefreshAll()
+  end)
+
+  titlePositionDropdown = CreateFrame("Frame", "ItemTrackerConfigTitlePositionDropdown", parent, "UIDropDownMenuTemplate")
+  titlePositionDropdown:SetPoint("TOPLEFT", titleCheck, "BOTTOMLEFT", -16, -8)
+  UIDropDownMenu_SetWidth(titlePositionDropdown, 150)
+  UIDropDownMenu_Initialize(titlePositionDropdown, function(self, level)
+    for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+      local option = UIDropDownMenu_CreateInfo()
+      option.text = side
+      option.value = side
+      option.func = function(self)
+        ItemTrackerDB.bars[selectedBar].titlePosition = self.value
+        UIDropDownMenu_SetSelectedValue(titlePositionDropdown, self.value)
+        UIDropDownMenu_SetText(titlePositionDropdown, self.value)
+        ItemTracker.Bar.RefreshAll()
+      end
+      UIDropDownMenu_AddButton(option, level)
+    end
+  end)
+
+  local function CommitOffsetBox(box, key)
+    local value = tonumber(box:GetText()) or 0
+    value = math.max(-200, math.min(200, value))
+    ItemTrackerDB.bars[selectedBar][key] = value
+    box:SetText(tostring(value))
+    box:ClearFocus()
+    ItemTracker.Bar.RefreshAll()
+  end
+
+  titleOffsetLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  titleOffsetLabel:SetPoint("TOPLEFT", titlePositionDropdown, "BOTTOMLEFT", 16, -12)
+  titleOffsetLabel:SetText("Offset X")
+
+  titleOffsetXBox = CreateFrame("EditBox", "ItemTrackerConfigTitleOffsetX", parent, "InputBoxTemplate")
+  titleOffsetXBox:SetSize(40, 20)
+  titleOffsetXBox:SetAutoFocus(false)
+  titleOffsetXBox:SetPoint("LEFT", titleOffsetLabel, "RIGHT", 6, 0)
+  titleOffsetXBox:SetScript("OnEnterPressed", function(self) CommitOffsetBox(self, "titleOffsetX") end)
+  titleOffsetXBox:SetScript("OnEditFocusLost", function(self) CommitOffsetBox(self, "titleOffsetX") end)
+
+  titleOffsetYLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  titleOffsetYLabel:SetPoint("LEFT", titleOffsetXBox, "RIGHT", 10, 0)
+  titleOffsetYLabel:SetText("Y")
+
+  titleOffsetYBox = CreateFrame("EditBox", "ItemTrackerConfigTitleOffsetY", parent, "InputBoxTemplate")
+  titleOffsetYBox:SetSize(40, 20)
+  titleOffsetYBox:SetAutoFocus(false)
+  titleOffsetYBox:SetPoint("LEFT", titleOffsetYLabel, "RIGHT", 6, 0)
+  titleOffsetYBox:SetScript("OnEnterPressed", function(self) CommitOffsetBox(self, "titleOffsetY") end)
+  titleOffsetYBox:SetScript("OnEditFocusLost", function(self) CommitOffsetBox(self, "titleOffsetY") end)
+
   local function CreateSlider(name, label, anchor, minVal, maxVal, step, setter)
     local slider = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
     slider:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -24)
@@ -416,7 +516,10 @@ local function CreateBarOptions(parent)
     return slider
   end
 
-  iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", lockCheck, 16, 64, 1,
+  titleFontSizeSlider = CreateSlider("ItemTrackerConfigTitleFontSize", "Title Font Size", titleOffsetLabel, 8, 24, 1,
+    function(value) ItemTrackerDB.bars[selectedBar].titleFontSize = value end)
+
+  iconSizeSlider = CreateSlider("ItemTrackerConfigIconSize", "Icon Size", titleFontSizeSlider, 16, 64, 1,
     function(value) ItemTrackerDB.bars[selectedBar].iconSize = value end)
 
   columnsSlider = CreateSlider("ItemTrackerConfigColumns", "Columns", iconSizeSlider, 1, 20, 1,
@@ -485,7 +588,7 @@ function ItemTracker.Config.Create()
   end
 
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(600, 560)
+  frame:SetSize(600, 700)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -611,10 +714,10 @@ function ItemTracker.Config.Create()
   ItemTracker.Skins.ApplyElvUIToConfig(frame, {
     buttons = { newBarButton, deleteBarButton },
     closeButtons = { closeButton, unpack(removeButtons) },
-    checkboxes = { lockCheck },
-    editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox, filterThresholdSlider.valueBox, unpack(thresholdBoxes) },
-    sliders = { iconSizeSlider, columnsSlider, scaleSlider, filterThresholdSlider },
-    dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 150 }, { frame = filterTypeDropdown, width = 190 }, { frame = filterSubTypeDropdown, width = 190 } },
+    checkboxes = { lockCheck, titleCheck },
+    editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox, filterThresholdSlider.valueBox, titleFontSizeSlider.valueBox, titleOffsetXBox, titleOffsetYBox, unpack(thresholdBoxes) },
+    sliders = { iconSizeSlider, columnsSlider, scaleSlider, filterThresholdSlider, titleFontSizeSlider },
+    dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 150 }, { frame = filterTypeDropdown, width = 190 }, { frame = filterSubTypeDropdown, width = 190 }, { frame = titlePositionDropdown, width = 150 } },
     plainFrames = { dragSlot },
   })
 

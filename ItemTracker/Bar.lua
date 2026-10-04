@@ -96,6 +96,32 @@ local function GetDisplayItems(bar)
   return bar.items
 end
 
+-- Gap (pixels) between the bar's icon grid and its title, before any
+-- user-set titleOffsetX/titleOffsetY nudge is added on top.
+local TITLE_GAP = 4
+
+-- Anchors entry.title just outside the given side of entry.frame (whose
+-- size already reflects this layout pass's item count), nudged by the
+-- bar's own titleOffsetX/titleOffsetY on top of the preset side -- the
+-- anchor is live, so the title stays correctly placed as the bar's size
+-- changes on a later layout pass without needing to be repositioned here
+-- again.
+local function PositionTitle(entry, bar)
+  local title = entry.title
+  local offsetX = bar.titleOffsetX or 0
+  local offsetY = bar.titleOffsetY or 0
+  title:ClearAllPoints()
+  if bar.titlePosition == "BOTTOM" then
+    title:SetPoint("TOP", entry.frame, "BOTTOM", offsetX, -TITLE_GAP + offsetY)
+  elseif bar.titlePosition == "LEFT" then
+    title:SetPoint("RIGHT", entry.frame, "LEFT", -TITLE_GAP + offsetX, offsetY)
+  elseif bar.titlePosition == "RIGHT" then
+    title:SetPoint("LEFT", entry.frame, "RIGHT", TITLE_GAP + offsetX, offsetY)
+  else -- "TOP" (default)
+    title:SetPoint("BOTTOM", entry.frame, "TOP", offsetX, TITLE_GAP + offsetY)
+  end
+end
+
 local function LayoutBar(barIndex)
   local entry = barFrames[barIndex]
   local bar = ItemTrackerDB.bars[barIndex]
@@ -118,6 +144,16 @@ local function LayoutBar(barIndex)
     entry.buttons[itemIndex]:Hide()
   end
   entry.frame:SetSize(ItemTracker.Logic.ComputeFrameSize(#displayItems, bar))
+
+  if bar.showTitle then
+    local fontPath, _, fontFlags = entry.title:GetFont()
+    entry.title:SetFont(fontPath, bar.titleFontSize, fontFlags)
+    entry.title:SetText(bar.name)
+    PositionTitle(entry, bar)
+    entry.title:Show()
+  else
+    entry.title:Hide()
+  end
 end
 
 -- Creates the bar frame for `barIndex` the FIRST time it's needed, and
@@ -131,6 +167,7 @@ local function EnsureBarFrame(barIndex, bar)
   if not entry then
     local frame = CreateFrame("Frame", "ItemTrackerBar" .. barIndex, UIParent)
     entry = { frame = frame, buttons = {} }
+    entry.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     barFrames[barIndex] = entry
   end
   local frame = entry.frame
