@@ -1,14 +1,16 @@
 name: Release
 
-# Each WoW patch this addon targets gets its own long-lived branch --
-# `main` for the original/current target, `main-<patch>` for every
-# other one added later (e.g. `main-cata`). Whichever branch pushes,
-# ItemTracker.toc's own `## X-WoW-Patch:` line (not the branch name)
-# is the authoritative source for which patch a release is for, so
-# release naming is correct even if a branch is renamed.
+# Each WoW patch this addon targets gets its own long-lived `main-<patch>`
+# branch (e.g. `main-3.3.5`, later `main-cata`), and ONLY those branches
+# trigger a release -- `main` itself never does, regardless of what it
+# ends up representing (a mirror of one patch today, maybe a different,
+# actively-evolving target like retail later). Whichever main-* branch
+# pushes, ItemTracker.toc's own `## X-WoW-Patch:` line (not the branch
+# name) is the authoritative source for which patch a release is for, so
+# naming is correct even if a branch is renamed.
 on:
   push:
-    branches: [main, 'main-*']
+    branches: ['main-*']
 
 permissions:
   contents: write
