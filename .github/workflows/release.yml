@@ -88,6 +88,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          # Without this, a brand-new tag defaults to the repository's
+          # default branch (main) instead of the commit that actually
+          # triggered this run -- harmless once main and main-<patch>
+          # happen to match, but silently wrong whenever they don't
+          # (exactly what happened here: every tag pointed at main's
+          # long-stale HEAD instead of the real build).
+          target_commitish: ${{ github.sha }}
           name: "ItemTracker ${{ steps.version.outputs.tag }}"
           files: ItemTracker-${{ steps.version.outputs.tag }}.zip
           body_path: release_notes.md
