@@ -5,7 +5,29 @@ All notable changes to ItemTracker are documented here. Versions follow
 (3.3.5a today, possibly others later) has its own independent release
 count. The very first release predates that scheme and is just `v1`.
 
-## [3.3.5-v2]
+## [Unreleased]
+
+### Added
+
+- **Category filters** — a bar can auto-populate from the game's own item
+  type/subtype classification (e.g. "Trade Goods > Enchanting") instead
+  of a manually curated list, live-updating as matching items are
+  acquired or lost.
+- **Bar title** — optionally show a bar's own name next to its icons,
+  with a choice of side (top/bottom/left/right), a position nudge, and
+  an adjustable font size.
+- **Maximum Rows** — cap how many rows of items a bar displays at once
+  (0 = show all, however many rows that takes).
+
+### Changed
+
+- The config window's bar-options section is now two columns
+  (parameters on the left, items on the right) instead of one long
+  stacked list.
+- The "Columns" slider is now labeled "Items per Row" (same setting,
+  clearer name).
+
+## [3.3.5-v2] - 2026-10-04
 
 ### Added
 

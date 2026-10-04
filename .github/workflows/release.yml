@@ -53,6 +53,17 @@ jobs:
             echo "TAG_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Extract changelog entry
+        run: |
+          awk '
+            /^## \[Unreleased\]/ { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "_No changelog entry found for this release._" > release_notes.md
+          fi
+
       - name: Zip addon
         env:
           TAG: ${{ steps.version.outputs.tag }}
@@ -64,3 +75,25 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "ItemTracker ${{ steps.version.outputs.tag }}"
           files: ItemTracker-${{ steps.version.outputs.tag }}.zip
+          body_path: release_notes.md
+
+      # Rolls CHANGELOG.md's "Unreleased" section into a dated entry for
+      # the release that was just published, and opens a fresh empty
+      # "Unreleased" section above it for whatever comes next -- keeps
+      # the changelog historically accurate with no manual step. Pushes
+      # with [skip ci] so this commit doesn't re-trigger this workflow.
+      - name: Roll changelog's Unreleased section into this release
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          sed -i "s/^## \[Unreleased\]\$/## [Unreleased]\n\n## [${TAG}] - ${today}/" CHANGELOG.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::warning::CHANGELOG.md has no '## [Unreleased]' heading to roll forward -- skipping the changelog commit."
+          else
+            git commit -m "chore: changelog for ${TAG} [skip ci]"
+            git push origin HEAD:"${GITHUB_REF_NAME}"
+          fi
