@@ -564,8 +564,14 @@ local function CreateBarOptions(parent)
     local bar = ItemTrackerDB.bars[selectedBar]
     local cursorY = CONTENT_TOP_Y
     for _, row in ipairs(leftColumnRows) do
+      -- A slider's valueBox is a sibling widget positioned via SetPoint,
+      -- not a child frame -- hiding/showing the slider itself does not
+      -- propagate to it, so it must be toggled explicitly here too.
       if row.isVisible(bar) then
         row.frame:Show()
+        if row.frame.valueBox then
+          row.frame.valueBox:Show()
+        end
         local spec = ROW_TYPES[row.rowType]
         local x = spec.isDropdown and (LEFT_COLUMN_X - 16) or LEFT_COLUMN_X
         row.frame:ClearAllPoints()
@@ -573,6 +579,9 @@ local function CreateBarOptions(parent)
         cursorY = cursorY - spec.topPadding - spec.height - LEFT_COLUMN_ROW_GAP
       else
         row.frame:Hide()
+        if row.frame.valueBox then
+          row.frame.valueBox:Hide()
+        end
       end
     end
   end
