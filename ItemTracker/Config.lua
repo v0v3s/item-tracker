@@ -4,6 +4,15 @@ ItemTracker.Config = ItemTracker.Config or {}
 local ROW_HEIGHT = 36
 local NUM_VISIBLE_ROWS = 6
 
+-- Two-column layout below the bar selector row: parameters (category
+-- filter, lock, sliders, growth) on the left, items (manual add-row/list,
+-- or the filtered "Showing N items" readout) on the right, separated by a
+-- vertical divider line.
+local LEFT_COLUMN_X = 24
+local RIGHT_COLUMN_X = 300
+local DIVIDER_X = 280
+local CONTENT_TOP_Y = -90
+
 local frame
 local addEditBox
 local addError
@@ -291,9 +300,72 @@ local function CreateBarSelector(parent)
   end)
 end
 
-local function CreateBarOptions(parent, anchorTo)
+local function CreateBarOptions(parent)
+  -- Category Filter comes first: it's the one control that decides
+  -- whether the rest of the window's manual item list is even usable.
+  filterTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterTypeDropdown", parent, "UIDropDownMenuTemplate")
+  filterTypeDropdown:SetPoint("TOPLEFT", parent, "TOPLEFT", LEFT_COLUMN_X - 16, CONTENT_TOP_Y)
+  UIDropDownMenu_SetWidth(filterTypeDropdown, 190)
+  UIDropDownMenu_Initialize(filterTypeDropdown, function(self, level)
+    local noneOption = UIDropDownMenu_CreateInfo()
+    noneOption.text = "None (manual)"
+    noneOption.value = nil
+    noneOption.func = function()
+      ItemTrackerDB.bars[selectedBar].filter = nil
+      ItemTracker.Bar.RefreshAll()
+      RefreshBarUI()
+    end
+    UIDropDownMenu_AddButton(noneOption, level)
+
+    for _, itemType in ipairs(ItemTracker.BagScan.GetCategories().order) do
+      local option = UIDropDownMenu_CreateInfo()
+      option.text = itemType
+      option.value = itemType
+      option.func = function(self)
+        ItemTrackerDB.bars[selectedBar].filter = { itemType = self.value, itemSubType = nil }
+        ItemTracker.Bar.RefreshAll()
+        RefreshBarUI()
+      end
+      UIDropDownMenu_AddButton(option, level)
+    end
+  end)
+
+  filterSubTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterSubTypeDropdown", parent, "UIDropDownMenuTemplate")
+  filterSubTypeDropdown:SetPoint("TOPLEFT", filterTypeDropdown, "BOTTOMLEFT", 0, -8)
+  UIDropDownMenu_SetWidth(filterSubTypeDropdown, 190)
+  UIDropDownMenu_Initialize(filterSubTypeDropdown, function(self, level)
+    local bar = ItemTrackerDB.bars[selectedBar]
+    if not bar.filter then
+      return
+    end
+    local allOption = UIDropDownMenu_CreateInfo()
+    allOption.text = "All"
+    allOption.value = nil
+    allOption.func = function()
+      bar.filter.itemSubType = nil
+      ItemTracker.Bar.RefreshAll()
+      RefreshBarOptions()
+      RefreshFilterStatus()
+    end
+    UIDropDownMenu_AddButton(allOption, level)
+
+    local subTypes = ItemTracker.BagScan.GetCategories().subTypes[bar.filter.itemType] or {}
+    for _, subType in ipairs(subTypes) do
+      local option = UIDropDownMenu_CreateInfo()
+      option.text = subType
+      option.value = subType
+      option.func = function(self)
+        bar.filter.itemSubType = self.value
+        ItemTracker.Bar.RefreshAll()
+        RefreshBarOptions()
+        RefreshFilterStatus()
+      end
+      UIDropDownMenu_AddButton(option, level)
+    end
+  end)
+
   lockCheck = CreateFrame("CheckButton", "ItemTrackerConfigLockCheck", parent, "UICheckButtonTemplate")
-  lockCheck:SetPoint("TOPLEFT", anchorTo, "BOTTOMLEFT", 0, -16)
+  lockCheck:SetPoint("TOPLEFT", filterSubTypeDropdown, "BOTTOMLEFT", 16, -16)
   _G[lockCheck:GetName() .. "Text"]:SetText("Lock bar")
   lockCheck:SetScript("OnClick", function(self)
     ItemTracker.Bar.SetLocked(selectedBar, self:GetChecked() and true or false)
@@ -351,7 +423,7 @@ local function CreateBarOptions(parent, anchorTo)
 
   growthDropdown = CreateFrame("Frame", "ItemTrackerConfigGrowthDropdown", parent, "UIDropDownMenuTemplate")
   growthDropdown:SetPoint("TOPLEFT", scaleSlider, "BOTTOMLEFT", -16, -24)
-  UIDropDownMenu_SetWidth(growthDropdown, 100)
+  UIDropDownMenu_SetWidth(growthDropdown, 150)
   UIDropDownMenu_Initialize(growthDropdown, function(self, level)
     for _, direction in ipairs({ "RIGHT", "LEFT", "DOWN", "UP" }) do
       local option = UIDropDownMenu_CreateInfo()
@@ -367,68 +439,7 @@ local function CreateBarOptions(parent, anchorTo)
     end
   end)
 
-  filterTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterTypeDropdown", parent, "UIDropDownMenuTemplate")
-  filterTypeDropdown:SetPoint("TOPLEFT", growthDropdown, "BOTTOMLEFT", 16, -24)
-  UIDropDownMenu_SetWidth(filterTypeDropdown, 130)
-  UIDropDownMenu_Initialize(filterTypeDropdown, function(self, level)
-    local noneOption = UIDropDownMenu_CreateInfo()
-    noneOption.text = "None (manual)"
-    noneOption.value = nil
-    noneOption.func = function()
-      ItemTrackerDB.bars[selectedBar].filter = nil
-      ItemTracker.Bar.RefreshAll()
-      RefreshBarUI()
-    end
-    UIDropDownMenu_AddButton(noneOption, level)
-
-    for _, itemType in ipairs(ItemTracker.BagScan.GetCategories().order) do
-      local option = UIDropDownMenu_CreateInfo()
-      option.text = itemType
-      option.value = itemType
-      option.func = function(self)
-        ItemTrackerDB.bars[selectedBar].filter = { itemType = self.value, itemSubType = nil }
-        ItemTracker.Bar.RefreshAll()
-        RefreshBarUI()
-      end
-      UIDropDownMenu_AddButton(option, level)
-    end
-  end)
-
-  filterSubTypeDropdown = CreateFrame("Frame", "ItemTrackerConfigFilterSubTypeDropdown", parent, "UIDropDownMenuTemplate")
-  filterSubTypeDropdown:SetPoint("LEFT", filterTypeDropdown, "RIGHT", 4, 0)
-  UIDropDownMenu_SetWidth(filterSubTypeDropdown, 130)
-  UIDropDownMenu_Initialize(filterSubTypeDropdown, function(self, level)
-    local bar = ItemTrackerDB.bars[selectedBar]
-    if not bar.filter then
-      return
-    end
-    local allOption = UIDropDownMenu_CreateInfo()
-    allOption.text = "All"
-    allOption.value = nil
-    allOption.func = function()
-      bar.filter.itemSubType = nil
-      ItemTracker.Bar.RefreshAll()
-      RefreshBarOptions()
-      RefreshFilterStatus()
-    end
-    UIDropDownMenu_AddButton(allOption, level)
-
-    local subTypes = ItemTracker.BagScan.GetCategories().subTypes[bar.filter.itemType] or {}
-    for _, subType in ipairs(subTypes) do
-      local option = UIDropDownMenu_CreateInfo()
-      option.text = subType
-      option.value = subType
-      option.func = function(self)
-        bar.filter.itemSubType = self.value
-        ItemTracker.Bar.RefreshAll()
-        RefreshBarOptions()
-        RefreshFilterStatus()
-      end
-      UIDropDownMenu_AddButton(option, level)
-    end
-  end)
-
-  filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", filterTypeDropdown, 0, 50, 1,
+  filterThresholdSlider = CreateSlider("ItemTrackerConfigFilterThreshold", "Low Stock Threshold", growthDropdown, 0, 50, 1,
     function(value) ItemTrackerDB.bars[selectedBar].filterThreshold = value end)
 end
 
@@ -465,7 +476,7 @@ function ItemTracker.Config.Create()
   end
 
   frame = CreateFrame("Frame", "ItemTrackerConfig", UIParent)
-  frame:SetSize(340, 700)
+  frame:SetSize(600, 560)
   frame:SetPoint(ItemTrackerDB.config.point, UIParent, ItemTrackerDB.config.relPoint, ItemTrackerDB.config.x, ItemTrackerDB.config.y)
   frame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -497,9 +508,16 @@ function ItemTracker.Config.Create()
 
   CreateBarSelector(frame)
 
+  local divider = frame:CreateTexture(nil, "ARTWORK")
+  divider:SetTexture(1, 1, 1)
+  divider:SetVertexColor(1, 1, 1, 0.2)
+  divider:SetWidth(2)
+  divider:SetPoint("TOP", frame, "TOPLEFT", DIVIDER_X, CONTENT_TOP_Y + 10)
+  divider:SetPoint("BOTTOM", frame, "BOTTOMLEFT", DIVIDER_X, 20)
+
   instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  instructions:SetPoint("TOPLEFT", barDropdown, "BOTTOMLEFT", 15, -10)
-  instructions:SetWidth(290)
+  instructions:SetPoint("TOPLEFT", frame, "TOPLEFT", RIGHT_COLUMN_X, CONTENT_TOP_Y)
+  instructions:SetWidth(260)
   instructions:SetJustifyH("LEFT")
   instructions:SetText("Type an item name, link, or ID and press Enter, or drag an item onto the slot below.")
 
@@ -569,7 +587,7 @@ function ItemTracker.Config.Create()
   filterStatus:SetJustifyH("LEFT")
   filterStatus:Hide()
 
-  CreateBarOptions(frame, scrollFrame)
+  CreateBarOptions(frame)
 
   frame:Hide()
   table.insert(UISpecialFrames, "ItemTrackerConfig")
@@ -587,7 +605,7 @@ function ItemTracker.Config.Create()
     checkboxes = { lockCheck },
     editboxes = { addEditBox, barNameBox, iconSizeSlider.valueBox, columnsSlider.valueBox, scaleSlider.valueBox, filterThresholdSlider.valueBox, unpack(thresholdBoxes) },
     sliders = { iconSizeSlider, columnsSlider, scaleSlider, filterThresholdSlider },
-    dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 100 }, { frame = filterTypeDropdown, width = 130 }, { frame = filterSubTypeDropdown, width = 130 } },
+    dropdowns = { { frame = barDropdown, width = 110 }, { frame = growthDropdown, width = 150 }, { frame = filterTypeDropdown, width = 190 }, { frame = filterSubTypeDropdown, width = 190 } },
     plainFrames = { dragSlot },
   })
 
