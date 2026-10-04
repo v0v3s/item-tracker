@@ -10,7 +10,6 @@ Create as many tracker bars as you want, each showing live bag+bank counts for w
 
 > Not compatible with retail WoW. Built and tested against a 3.3.5a private server client.
 
-<!-- TODO: hero screenshot showing the tracker bar in a normal play session -->
 ![Tracker bar overview](images/hero.png)
 
 ## Features
@@ -25,10 +24,8 @@ Create as many tracker bars as you want, each showing live bag+bank counts for w
 - **Movable** — drag the bar (or any icon on it) to reposition; position is remembered per character.
 - **Optional ElvUI skin** — automatically matches ElvUI's flat style if you have it installed; looks and works fine without it too.
 
-<!-- TODO: outdated -- this still shows the pre-Multiple-Bars/Category-Filters single-column config window. Retake showing the current two-column layout (bar selector, parameters on the left including Category Filter/Show Title/Items per Row/Maximum Rows, items on the right). -->
 ![Config window](images/config.png)
 
-<!-- TODO: side-by-side or before/after screenshot showing the bar/config window with ElvUI's skin applied -->
 ![ElvUI-skinned config window](images/elvui-skin.png)
 
 ## Installation
